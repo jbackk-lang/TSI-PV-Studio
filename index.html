@@ -296,10 +296,30 @@ function paintInventory(){
   remove.onclick=()=>saveInventory(inventory.filter(entry=>entry.id!==item.id));
   const edit=document.createElement('button');edit.textContent='Edytuj';
   edit.onclick=()=>editInventory(item);
-  row.insertCell().append(edit,remove);return row;
+  const actions=row.insertCell();actions.append(edit,remove);
+  if(item.protocol==='Modbus TCP'){
+   const read=document.createElement('button');read.textContent='Odczytaj próbkę';
+   read.onclick=()=>readSample(item,read);
+   actions.append(read);
+  }
+  return row;
  }));
 }
-const networkFields=[['host','Adres IP lub nazwa hosta',''],['port','Port TCP','502',1,65535],['unit','Adres urządzenia','1',0,255]];
+async function readSample(item,button){
+ const c=item.connection;
+ if(c.register==null||c.register===''){
+  editInventory(item);$('inventory-status').textContent='Uzupełnij adres rejestru i zapisz wpis.';return;
+ }
+ button.disabled=true;
+ try{
+  const response=await fetch('/modbus-read',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({host:c.host,port:Number(c.port),unit:Number(c.unit),address:Number(c.register),input:c.function==='4'})});
+  const sample=await response.json();
+  $('inventory-status').textContent=item.name+' · '+(response.ok?'Surowy odczyt: '+sample.value+' · '+new Date().toLocaleTimeString():sample.error);
+ }catch{$('inventory-status').textContent='Nie udało się pobrać próbki.';}
+ finally{button.disabled=false;}
+}
+const networkFields=[['host','Adres IP lub nazwa hosta',''],['port','Port TCP','502',1,65535],['unit','Adres urządzenia','1',0,255],['register','Adres rejestru od 0','',0,65535],['function','Typ rejestru (3 – holding, 4 – input)','4',3,4]];
 const linkFields={
  Ethernet:networkFields,'Wi-Fi':networkFields,
  'RS-485':[['com','Port COM',''],['baud','Prędkość transmisji (bit/s)','9600',1,1000000],['parity','Parzystość (N, E lub O)','E'],['stop','Bity stopu','1',1,2],['unit','Adres urządzenia','1',1,247]],
