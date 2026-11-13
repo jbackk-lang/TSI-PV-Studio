@@ -118,7 +118,7 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <div class="actions"><button>Oblicz</button><button type="button" id="cable-back">Wróć do schematu</button></div>
 </form><p id="cable-result" role="status"></p>
 <details id="cable-profile" hidden><summary>Przebieg godzinowy</summary>
-<div class="scroll"><table><thead><tr><th>Godzina profilu</th><th>Obciążenie (W)</th><th>Temperatura modelowana (°C)</th></tr></thead><tbody id="cable-rows"></tbody></table></div></details></div><div class="card"><h2>Porównanie przekrojów</h2><p>Model rezystancyjny dla DC oraz AC przy cos φ ≈ 1. Obciążalność podaj z dokumentacji kabla dla faktycznego ułożenia.</p>
+<div class="scroll"><table><thead><tr><th>Godzina profilu</th><th>Obciążenie (W)</th><th>Temperatura modelowana (°C)</th></tr></thead><tbody id="cable-rows"></tbody></table></div></details></div><div class="card"><h2>Porównanie przekrojów</h2><p id="sizing-segment">Wybierz przewód na schemacie, aby zapisać jego ustawienia.</p><p>Model rezystancyjny dla DC oraz AC przy cos φ ≈ 1. Obciążalność podaj z dokumentacji kabla dla faktycznego ułożenia.</p>
 <form id="cable-sizing"><div class="fields">
 <label>Obwód<select name="mode"><option value="dc">DC</option><option value="ac1">AC jednofazowy</option><option value="ac3">AC trójfazowy symetryczny</option></select></label>
 <label>Żyła<select name="material"><option value="cu">Miedź</option><option value="al">Aluminium</option></select></label>
@@ -262,6 +262,7 @@ function showHour(){
   analysis.className='reading';analysis.textContent=tr('↗ Analiza','↗ Analysis');
   analysis.onclick=()=>{
    $('cable-selection').textContent=label;
+   selectCable('wire-'+col+'-'+row,label);
    $('cable-result').textContent='';$('cable-profile').hidden=true;
    openPage('analysis');
    $('cable-panel').querySelector('h2').focus();
@@ -513,6 +514,23 @@ function compareSections({mode,material,length,voltage,current,limit},variants){
    passes:percent<=limit&&ampacity!==null&&current<=ampacity};
  });
 }
+const sizingKey='pv-cable-sizing';
+let activeCable=null, cableSettings={};
+try{cableSettings=JSON.parse(localStorage.getItem(sizingKey)||'{}')||{};}catch{}
+function selectCable(id,label){
+ activeCable=id;
+ $('sizing-segment').textContent=label;
+ const form=$('cable-sizing');
+ form.reset();
+ form.elements.mode.value=label.startsWith('Przewód DC')||label.startsWith('DC cable')?'dc':'ac1';
+ for(const [name,value] of Object.entries(cableSettings[id]||{})){
+  const field=form.elements.namedItem(name);
+  if(field)field.value=value;
+ }
+ $('sizing-results').replaceChildren();
+ $('sizing-status').textContent='';
+ if(form.checkValidity())form.requestSubmit();
+}
 $('cable-sizing').onsubmit=event=>{
  event.preventDefault();
  const f=new FormData(event.target);
@@ -535,6 +553,11 @@ $('cable-sizing').onsubmit=event=>{
   }
   const candidate=rows.find(row=>row.passes);
   $('sizing-status').textContent=candidate?'Najmniejszy z podanych wariantów spełniający oba wpisane kryteria: '+format(candidate.section)+' mm².':'Brak wariantu potwierdzonego według obu kryteriów.';
+  if(activeCable){
+   cableSettings[activeCable]=Object.fromEntries(f);
+   try{localStorage.setItem(sizingKey,JSON.stringify(cableSettings));}
+   catch{$('sizing-status').textContent+=' Nie udało się zapisać ustawień w przeglądarce.';}
+  }
  }catch(error){$('sizing-status').textContent=error.message;}
 };
 $('settings').requestSubmit();
