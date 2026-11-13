@@ -107,7 +107,16 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 0.5;10;0.25
 1;10;0.5</textarea></label><button>Oblicz scenariusz</button></form>
 <p id="coupling-status" role="status"></p><label>Wielkość na wykresie<select id="coupling-metric"><option value="current_a">Prąd (A)</option><option value="resistance_ohm">Rezystancja (Ω)</option></select></label><canvas id="coupling-chart" aria-label="Wykres wyniku modelu PV i akumulatora"></canvas><div class="scroll"><table><thead><tr><th>Czas (dni)</th><th>Prąd modelowany (A)</th><th>Rezystancja modelowana (Ω)</th></tr></thead><tbody id="coupling-results"></tbody></table></div>
-</div></section>
+</div><div class="card" id="cable-panel"><h2 tabindex="-1">Analiza cieplna przewodu</h2>
+<p id="cable-selection">Wybierz odcinek na schemacie.</p>
+<p>Model scenariusza. Moc odniesienia podaj dla warunków znamionowych przewodu. Wynik służy do analizy cieplnej i nie wyznacza dopuszczalnej obciążalności.</p>
+<form id="cable-analysis">
+<label>Moc odniesienia (W)<input name="rated" type="number" min="1" required></label>
+<label>Temperatura otoczenia (°C)<input name="ambient" type="number" min="-50" max="60" value="25" required></label>
+<label>Izolacja<select name="insulation"><option value="xlpe">XLPE</option><option value="pvc">PVC</option><option value="epr">EPR</option></select></label>
+<label>Godzinowa moc obciążenia (W), jedna wartość w wierszu<textarea name="loads" required></textarea></label>
+<div class="actions"><button>Oblicz</button><button type="button" id="cable-back">Wróć do schematu</button></div>
+</form><p id="cable-result" role="status"></p></div></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><p class="diagram-key" id="diagram-key"></p><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
@@ -234,7 +243,15 @@ function showHour(){
   b.dataset.flow=value>0?'active':'idle';
   b.setAttribute('aria-label',label+' · '+b.textContent);
   b.onclick=()=>openTechnical(label,[tr('Energia w wybranej godzinie: ','Energy in selected hour: ')+energy(value),tr('Długość i przekrój: nie podano.','Length and cross-section: unspecified.')]);
-  group.append(b);sensor(group,label,keys,group.classList.contains("device")?"device-"+col+"-"+row:"wire-"+col+"-"+row);place(group,col,row);
+  group.append(b);sensor(group,label,keys,group.classList.contains("device")?"device-"+col+"-"+row:"wire-"+col+"-"+row);
+  const analysis=document.createElement('button');
+  analysis.className='reading';analysis.textContent=tr('↗ Analiza','↗ Analysis');
+  analysis.onclick=()=>{
+   $('cable-selection').textContent=label;
+   openPage('analysis');
+   $('cable-panel').querySelector('h2').focus();
+  };
+  group.querySelector('.sensor-actions').append(analysis);place(group,col,row);
  }
  const pv=tr('Panele PV','Solar panels'),hub=tr('Falownik hybrydowy','Hybrid inverter'),meter=tr('Licznik energii','Energy meter'),grid=tr('Sieć','Grid');
  const charge=r.charge_kwh,discharge=r.discharge_kwh;
@@ -446,6 +463,23 @@ $('coupling').onsubmit=async event=>{
   }
   $('coupling-status').textContent='Przeliczono '+data.rows.length+' próbek.';
  }catch(error){$('coupling-status').textContent=error.message;}
+};
+$('cable-back').onclick=()=>openPage('start');
+$('cable-analysis').onsubmit=async event=>{
+ event.preventDefault();
+ const form=new FormData(event.target), button=event.submitter;
+ button.disabled=true;
+ $('cable-result').textContent='Obliczam…';
+ try{
+  const loads=form.get('loads').split(/\r?\n/).filter(line=>line.trim()).map(line=>Number(line.trim().replace(',','.')));
+  const response=await fetch('/cable-analysis',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({loads,rated:Number(form.get('rated')),ambient:Number(form.get('ambient')),insulation:form.get('insulation')})});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error);
+  const state={OK:'Wynik w zakresie modelu',PRZYSPIESZONE_STARZENIE:'Przyspieszone starzenie',KRYTYCZNE:'Wysokie obciążenie cieplne',ZNISZCZENIE_IZOLACJI:'Model wskazuje przekroczenie progu rozkładu izolacji'};
+  $('cable-result').textContent=state[data.status]+' · Średnia temperatura '+format(data.mean_conductor_temp_c)+' °C · Względne tempo starzenia '+format(data.mean_aging_factor)+'×';
+ }catch(error){$('cable-result').textContent=error.message;}
+ finally{button.disabled=false;}
 };
 $('settings').requestSubmit();
 </script>
