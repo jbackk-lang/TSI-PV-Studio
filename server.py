@@ -46,6 +46,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         pages = {
             "/": ("index.html", "text/html; charset=utf-8"),
+            "/panels/sensor.js": ("panels/sensor.js", "text/javascript; charset=utf-8"),
             "/panels/equipment.js": ("panels/equipment.js", "text/javascript; charset=utf-8"),
             "/panels/meter-comparison.js": ("panels/meter-comparison.js", "text/javascript; charset=utf-8"),
         }
