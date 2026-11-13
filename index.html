@@ -116,7 +116,9 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <label>Izolacja<select name="insulation"><option value="xlpe">XLPE</option><option value="pvc">PVC</option><option value="epr">EPR</option></select></label>
 <label>Godzinowa moc obciążenia (W), jedna wartość w wierszu<textarea name="loads" required></textarea></label>
 <div class="actions"><button>Oblicz</button><button type="button" id="cable-back">Wróć do schematu</button></div>
-</form><p id="cable-result" role="status"></p></div></section>
+</form><p id="cable-result" role="status"></p>
+<details id="cable-profile" hidden><summary>Przebieg godzinowy</summary>
+<div class="scroll"><table><thead><tr><th>Godzina profilu</th><th>Obciążenie (W)</th><th>Temperatura modelowana (°C)</th></tr></thead><tbody id="cable-rows"></tbody></table></div></details></div></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><p class="diagram-key" id="diagram-key"></p><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
@@ -248,6 +250,7 @@ function showHour(){
   analysis.className='reading';analysis.textContent=tr('↗ Analiza','↗ Analysis');
   analysis.onclick=()=>{
    $('cable-selection').textContent=label;
+   $('cable-result').textContent='';$('cable-profile').hidden=true;
    openPage('analysis');
    $('cable-panel').querySelector('h2').focus();
   };
@@ -470,6 +473,7 @@ $('cable-analysis').onsubmit=async event=>{
  const form=new FormData(event.target), button=event.submitter;
  button.disabled=true;
  $('cable-result').textContent='Obliczam…';
+ $('cable-profile').hidden=true;
  try{
   const loads=form.get('loads').split(/\r?\n/).filter(line=>line.trim()).map(line=>Number(line.trim().replace(',','.')));
   const response=await fetch('/cable-analysis',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -477,7 +481,13 @@ $('cable-analysis').onsubmit=async event=>{
   const data=await response.json();
   if(!response.ok)throw Error(data.error);
   const state={OK:'Wynik w zakresie modelu',PRZYSPIESZONE_STARZENIE:'Przyspieszone starzenie',KRYTYCZNE:'Wysokie obciążenie cieplne',ZNISZCZENIE_IZOLACJI:'Model wskazuje przekroczenie progu rozkładu izolacji'};
-  $('cable-result').textContent=state[data.status]+' · Średnia temperatura '+format(data.mean_conductor_temp_c)+' °C · Względne tempo starzenia '+format(data.mean_aging_factor)+'×';
+  $('cable-result').textContent=state[data.status]+' · Średnia temperatura '+format(data.mean_conductor_temp_c)+' °C · Maksimum '+format(data.peak_conductor_temp_c)+' °C · Względne tempo starzenia '+format(data.mean_aging_factor)+'×';
+  $('cable-rows').replaceChildren(...data.rows.map(row=>{
+   const tr=document.createElement('tr');
+   for(const value of [row.hour,format(row.load_w),format(row.temperature_c)])tr.insertCell().textContent=value;
+   return tr;
+  }));
+  $('cable-profile').hidden=false;
  }catch(error){$('cable-result').textContent=error.message;}
  finally{button.disabled=false;}
 };
