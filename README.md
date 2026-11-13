@@ -1,49 +1,38 @@
 # TSI PV Studio
 
-Samodzielna aplikacja do analizy fotowoltaiki, magazynu energii i wymiany z siecią. Pierwszy moduł liczy godzinowy bilans oraz koszt zmienny energii według podanych cen.
+**Fotowoltaika, magazyn energii i koszty instalacji w jednym lokalnym panelu.**  
+Wydanie 0.1 · 13 listopada 2026 · Windows x64
 
-## Uruchomienie aplikacji
+TSI PV Studio pomaga właścicielom instalacji i instalatorom porównać warianty pracy instalacji na godzinowym profilu produkcji i zużycia. Sprawdzisz, ile energii zużywa dom, ile przejmuje magazyn i ile trzeba pobrać z sieci. Wyniki możesz przejrzeć na schemacie, wykresach i w tabelach.
 
-Skopiuj cały folder aplikacji. Na Windows uruchom `START.bat` albo wykonaj `python server.py`. Potrzebny jest Python 3. Aplikacja korzysta z biblioteki standardowej, własnych plików i profilu demonstracyjnego. Nie wymaga instalacji bibliotek ani pobierania danych z innych repozytoriów.
+## Co oferuje pełna wersja
 
-Otwórz `http://127.0.0.1:8767/`. Aplikacja startuje z 24 godzinami oznaczonych danych demonstracyjnych. W panelu **Dane i sterowanie** możesz wkleić własny profil godzinowy CSV i zmienić parametry magazynu lub limit oddawania energii.
+| Panel | Zastosowanie |
+|---|---|
+| **Przegląd** | Interaktywny schemat paneli PV, falownika, magazynu, licznika i sieci. Strzałki pokazują przepływ w wybranej godzinie, a dymki prowadzą do odczytów i analiz. |
+| **Magazyn i sterowanie** | Symulacja autokonsumpcji z ustawieniem pojemności, mocy, sprawności, rezerwy i limitu oddawania energii do sieci. |
+| **Licznik i czujniki** | Rejestr urządzeń, ręczny odczyt Modbus TCP i RTU, historia próbek oraz porównanie poboru z symulacją z eksportem CSV. |
+| **Analizy** | Porównanie przekrojów przewodów według spadku napięcia i strat, model temperatury przewodu oraz scenariusze pracy akumulatora. |
+| **Bilans** | Koszt zakupu energii, dystrybucja, opłaty stałe, wartość eksportu, inwestycja, serwis i szacowany wynik po wydatkach. |
+| **Asystent TSI i Pomoc** | Odpowiedzi na wybrane pytania o symulację i ostatni odczyt, raport produkcji i użytkowania, rejestr awarii oraz instrukcja konfiguracji sprzętu. |
 
-Ekran **Przegląd** pokazuje kierunki przepływu energii dla wybranej godziny. Panel **Wykresy i pomiary** umożliwia włączanie serii, odczyt punktu i sprawdzenie wartości godzinowych w tabeli. Wykresy opisano w kWh, parametry mocy w kW, a koszt zmienny w zł. 
+Bilans jest szacunkiem według podanych stawek. Modbus sprawdzono z symulatorami. Bluetooth LE pozwala zapisać konfigurację urządzenia. Asystent korzysta z reguł i danych panelu. Funkcje sterowania działają w symulatorze.
 
-## Panele
+## Demo i pełne wydanie
 
-| Panel | Dane wejściowe | Dane do prezentacji | Stan |
-|---|---|---|---|
-| Bilans PV | Godzinowa produkcja i zużycie | Produkcja, zużycie, import, eksport, ograniczenie produkcji | Silnik gotowy |
-| Magazyn | Pojemność, moc, sprawność, rezerwa i stan początkowy | Stan naładowania, ładowanie i rozładowanie | Silnik gotowy |
-| Rozliczenie | Ceny kupna i sprzedaży w każdej godzinie | Koszt netto energii w każdej godzinie oraz suma | Koszt zmienny gotowy. Pełne rozliczenie w planie |
-| Przewody | Parametry obwodów AC/DC | Obciążalność, spadek napięcia, straty | W planie |
-| Symulator sterowania | Profil, ograniczenia i wybrana strategia | Porównanie reguł i przebiegi godzinowe | Autokonsumpcja i limit eksportu gotowe. Pozostałe strategie w planie |
+| Wydanie | Rozmiar | Uruchomienie |
+|---|---:|---|
+| **Demo** | ok. 1,6 KB | Zapisz plik `START.html` i otwórz w przeglądarce. Porównasz bilans dwóch przykładowych godzin dla różnych parametrów magazynu. |
+| **Pełne 0.1** | ok. 126 KB plików aplikacji przed dodaniem tej dokumentacji | Rozpakuj cały folder wydania, zainstaluj wymagania i uruchom `START.bat`. Pełna paczka jest w lokalnym zestawie wydania. |
 
-## Uruchomienie obliczeń
+[Pobierz demo](https://raw.githubusercontent.com/jbackk-lang/TSI-PV-Studio/main/demo/START.html)
 
-```python
-from simulation import Battery, simulate
+## Wymagania i uruchomienie
 
-profile = [
-    {"pv_kwh": 5, "load_kwh": 1, "buy_price": 1.00, "sell_price": 0.30},
-    {"pv_kwh": 0, "load_kwh": 3, "buy_price": 1.00, "sell_price": 0.30},
-]
-result = simulate(profile, Battery(capacity_kwh=4, power_kw=2), export_limit_kw=1)
-```
+**Szacowane minimum** to Windows x64, procesor dwurdzeniowy, 4 GB RAM łącznie z systemem oraz 1 GB wolnego miejsca na Pythona 3.12 x64 i biblioteki. Obliczenia działają na CPU. Testy obliczeń wykonano na Intel Core i5-3470T. Minimalnego zużycia RAM jeszcze nie zmierzono.
 
-Każdy wpis to jedna godzina. `rows` zasila wykresy i tabele, `totals` zasila karty podsumowania, a `battery` i `export_limit_kw` zachowują założenia. Wynik można zapisać jako JSON. Sprawność jest stosowana osobno przy ładowaniu i rozładowaniu. Kalkulator kosztu obejmuje podane stawki jednostkowe. Opłaty stałe, dystrybucja i reguły rozliczeń wymagają osobnego modułu.
+1. W folderze pełnego wydania wykonaj `py -3.12 -m pip install -r requirements.txt`.
+2. Uruchom `START.bat` lub wpisz `py -3.12 -B server.py`.
+3. Otwórz [lokalny panel](http://127.0.0.1:8767/). Serwer zamkniesz skrótem Ctrl+C w jego oknie.
 
-## Czujniki i kalibracja — plan
-
-Panel **Czujniki** będzie dostępny z menu oraz z dymków przy urządzeniach i przewodach. Wykorzystamy istniejący moduł kontroli czujników TIMDR po sprawdzeniu jego wejść, wyników i zależności. Potrzebne elementy trafią do paczki PV Studio, aby aplikacja działała samodzielnie.
-
-- **Odczyty:** wartość, jednostka, czas ostatniej próbki i źródło danych. Wykres rozróżni pomiar, dane demonstracyjne i wynik symulacji.
-- **Stany:** odczyt poprawny, ostrzeżenie, brak danych, odczyt poza zakresem i wymagana kalibracja. Stan czujnika będzie widoczny obok stanu urządzenia.
-- **Kalibracja:** wpisanie pomiarów odniesienia, porównanie odczytu surowego i skorygowanego oraz zapis współczynników z datą i możliwością przywrócenia poprzedniej wersji. Pierwsza wersja zastosuje korektę w analizie danych.
-
-## Demo i wymagania wersji 0.1
-
-[Zapisz demo jako START.html](https://raw.githubusercontent.com/jbackk-lang/TSI-PV-Studio/main/demo/START.html) i otwórz w przeglądarce z JavaScriptem. Plik ma około 1,6 KB i pokazuje bilans dwóch godzin.
-
-Pełna lokalna paczka ma około 126 KB po rozpakowaniu i 48 KB jako ZIP. Szacowane minimum na Windows x64 to 2 rdzenie, 4 GB RAM łącznie z systemem oraz 1 GB wolnego miejsca na Pythona 3.12 i biblioteki. GPU nie jest potrzebne do obecnych obliczeń. Testy obliczeń wykonano na Intel Core i5-3470T. Minimum RAM nie zostało zmierzone.
+Python i biblioteki instaluje się osobno. Do analiz potrzebny jest NumPy, a do odczytu RS‑485 biblioteka pySerial i adapter zgodny z urządzeniem.
