@@ -46,10 +46,14 @@ h1{color:#edf6ee}
 .device-state{color:var(--device-status);font-size:11px;font-weight:700}
 .schematic .device-main{grid-template-rows:minmax(2.5em,auto) 36px minmax(2.5em,auto) auto}
 .diagram-key{font-size:13px;color:#d2e5d6;margin:12px 0}
+select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;border-radius:7px;padding:8px}
+.schematic .device{grid-template-rows:1fr auto}
+.sensor-actions{display:grid;justify-items:center;gap:4px}
+.schematic .wire{grid-template-rows:auto auto}
 </style>
 <header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
 <button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
-<button data-page="battery">Magazyn</button><button data-page="meter">Licznik</button><button data-page="assistant">Asystent TSI</button></nav><div class="fields"><button id="language">PL / EN</button><button id="power" aria-pressed="true">Symulacja włączona</button></div></header>
+<button data-page="battery">Magazyn</button><button data-page="meter">Licznik</button><button data-page="assistant">Asystent TSI</button><button data-page="inventory">Urządzenia i czujniki</button></nav><div class="fields"><button id="language">PL / EN</button><button id="power" aria-pressed="true">Symulacja włączona</button></div></header>
 <main><section id="technical" hidden><h1 id="tech-title"></h1><div class="card" id="tech-data"></div><div class="actions"><button id="tech-back">Wróć do diagramu</button></div></section>
 <section id="battery" hidden><h1>Magazyn energii</h1><div class="card" id="battery-data"></div><div class="actions"><button id="battery-chart">Wykres magazynu</button></div></section>
 <section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><div class="actions"><button id="meter-chart">Wykres licznika</button></div></section>
@@ -74,7 +78,15 @@ h1{color:#edf6ee}
 <label>Odczyt wzorcowy dla wybranej godziny (kW)<input id="reference-kw" type="number" step="any" required></label>
 <button>Zapisz korektę</button><button type="button" id="undo-calibration">Cofnij korektę</button></form>
 <form id="baseline-form"><label>Osobne próbki prawidłowej pracy (kW, oddzielone średnikami)<input id="baseline-kw" required></label><button>Ustaw zakres odniesienia</button></form><p id="sensor-status" role="status"></p>
-<button id="sensor-chart">Porównaj odczyty na wykresie</button></div></section><section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
+<button id="sensor-chart">Porównaj odczyty na wykresie</button></div></section><section id="inventory" hidden><h1>Urządzenia i czujniki</h1>
+<div class="card"><form id="inventory-form" class="fields">
+<label>Typ<select id="inventory-type"><option value="sensor">Czujnik</option><option value="device">Urządzenie</option></select></label>
+<label>Nazwa<input id="inventory-name" maxlength="100" required></label>
+<label>Model lub identyfikator<input id="inventory-model" maxlength="100"></label>
+<label>Miejsce na schemacie<select id="inventory-target"><option value="">Bez przypisania</option></select></label>
+<button>Dodaj do bazy</button></form><p id="inventory-status" role="status"></p></div>
+<div class="card scroll"><table><thead><tr><th>Typ</th><th>Nazwa</th><th>Model</th><th>Miejsce</th><th>Stan</th><th></th></tr></thead><tbody id="inventory-list"></tbody></table></div></section>
+<section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><p class="diagram-key" id="diagram-key"></p><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
 <section id="charts" hidden><h1>Wykresy i pomiary</h1><div class="card"><div class="fields" id="legend"></div><canvas id="chart" aria-label="Wykres godzinowy energii w kWh"></canvas><p id="point"></p></div><div class="card scroll"><table id="table"></table></div></section>
@@ -151,10 +163,18 @@ function showHour(){
  function place(element,col,row){
   element.style.gridColumn=col;element.style.gridRow=row;board.append(element);
  }
- function sensor(group,label,keys){
+ function sensor(group,label,keys,id){
+  diagramTargets.set(id,label);
   const b=document.createElement('button');b.className='reading';
   b.textContent=tr('◉ Czujnik','◉ Sensor');b.setAttribute('aria-label',b.textContent+' · '+label);
-  b.onclick=()=>keys===meterWireSeries?openPage('sensor'):openChart(keys);group.append(b);
+  b.onclick=()=>keys===meterWireSeries?openPage('sensor'):openChart(keys);
+  const actions=document.createElement('div'),add=document.createElement('button');
+  actions.className='sensor-actions';add.className='reading';
+  const count=inventory.filter(item=>item.type==='sensor'&&item.target===id).length;
+  add.textContent=count?'＋ Czujnik ('+count+')':'＋ Czujnik';
+  add.setAttribute('aria-label','Dodaj czujnik · '+label);
+  add.onclick=()=>{openPage('inventory');$('inventory-type').value='sensor';$('inventory-target').value=id;$('inventory-name').focus();};
+  actions.append(b,add);group.append(actions);
  }
  function device(col,row,icon,label,value,keys,action){
   const group=document.createElement('div'),b=document.createElement('button');
@@ -168,7 +188,7 @@ function showHour(){
   const badge=document.createElement('span');badge.className='device-state';
   badge.textContent={working:tr('Praca','Operating'),idle:tr('Postój','Idle'),paused:tr('Wstrzymanie','Paused'),error:tr('Błąd obliczeń','Calculation error')}[state];
   b.append(name,symbol,reading,badge);
-  b.onclick=action;group.append(b);sensor(group,label,keys);place(group,col,row);
+  b.onclick=action;group.append(b);sensor(group,label,keys,group.classList.contains("device")?"device-"+col+"-"+row:"wire-"+col+"-"+row);place(group,col,row);
  }
  const energy=v=>format(v)+' kWh';
  function wire(col,row,label,value,arrow,keys,vertical=false){
@@ -179,7 +199,7 @@ function showHour(){
   b.dataset.flow=value>0?'active':'idle';
   b.setAttribute('aria-label',label+' · '+b.textContent);
   b.onclick=()=>openTechnical(label,[tr('Energia w wybranej godzinie: ','Energy in selected hour: ')+energy(value),tr('Długość i przekrój: nie podano.','Length and cross-section: unspecified.')]);
-  group.append(b);sensor(group,label,keys);place(group,col,row);
+  group.append(b);sensor(group,label,keys,group.classList.contains("device")?"device-"+col+"-"+row:"wire-"+col+"-"+row);place(group,col,row);
  }
  const pv=tr('Panele PV','Solar panels'),hub=tr('Falownik hybrydowy','Hybrid inverter'),meter=tr('Licznik energii','Energy meter'),grid=tr('Sieć','Grid');
  const charge=r.charge_kwh,discharge=r.discharge_kwh;
@@ -217,6 +237,7 @@ for(const [key,label,color] of metrics){
  b.onclick=()=>{if(!selectedSeries.has(key)&&[...selectedSeries].some(k=>meterWireSeries.includes(k)!==meterWireSeries.includes(key))){openChart([key]);return;}if(selectedSeries.has(key))selectedSeries.delete(key);else selectedSeries.add(key);b.setAttribute('aria-pressed',selectedSeries.has(key));draw();};$('legend').append(b);
 }
 function openPage(page){
+ if(page==='inventory')paintInventory();
  if(page==='sensor')paintSensor();
  if(result){
   const b=result.battery,t=result.totals;
@@ -237,11 +258,49 @@ function paintPower(){
 $('power').onclick=()=>{enabled=!enabled;paintPower();if(result)showHour();};
 $('language').onclick=()=>{
  english=!english;document.documentElement.lang=english?'en':'pl';
- const pages=[['Przegląd','Overview'],['Wykresy i pomiary','Charts and readings'],['Dane i sterowanie','Data and control'],['Magazyn','Battery'],['Licznik','Meter'],['Asystent TSI','TSI Assistant']];
+ const pages=[['Przegląd','Overview'],['Wykresy i pomiary','Charts and readings'],['Dane i sterowanie','Data and control'],['Magazyn','Battery'],['Licznik','Meter'],['Asystent TSI','TSI Assistant'],['Urządzenia i czujniki','Devices and sensors']];
  document.querySelectorAll('[data-page]').forEach((b,i)=>b.textContent=pages[i][+english]);
  for(const [id,pl,en] of [['battery','Magazyn energii','Battery storage'],['meter','Kalkulator licznika','Meter calculator'],['start','Przepływ energii','Energy flow'],['charts','Wykresy i pomiary','Charts and readings'],['setup','Dane i sterowanie','Data and control']]) $(id).querySelector('h1').textContent=english?en:pl;
  paintPower();
  if(result){showHour();openPage(document.querySelector('main>section:not([hidden])').id);}
+};
+const inventoryKey='pv-equipment-inventory';
+const diagramTargets=new Map();
+let inventory=[];
+try{
+ const saved=JSON.parse(localStorage.getItem(inventoryKey)||'[]');
+ if(Array.isArray(saved))inventory=saved;
+}catch{}
+function saveInventory(next){
+ try{localStorage.setItem(inventoryKey,JSON.stringify(next));}
+ catch{$('inventory-status').textContent='Nie udało się zapisać bazy w przeglądarce.';return;}
+ inventory=next;
+ $('inventory-status').textContent='Zapisano bazę.';
+ if(result)showHour();
+ paintInventory();
+}
+function paintInventory(){
+ const target=$('inventory-target'),selected=target.value;
+ target.replaceChildren(new Option('Bez przypisania',''),...[...diagramTargets].map(([id,label])=>new Option(label,id)));
+ target.value=diagramTargets.has(selected)?selected:'';
+ $('inventory-list').replaceChildren(...inventory.map(item=>{
+  const row=document.createElement('tr');
+  for(const value of [item.type==='sensor'?'Czujnik':'Urządzenie',item.name,item.model||'—',diagramTargets.get(item.target)||'—','Brak danych']){
+   row.insertCell().textContent=value;
+  }
+  const remove=document.createElement('button');remove.textContent='Usuń';
+  remove.setAttribute('aria-label','Usuń '+item.name);
+  remove.onclick=()=>saveInventory(inventory.filter(entry=>entry.id!==item.id));
+  row.insertCell().append(remove);return row;
+ }));
+}
+$('inventory-form').onsubmit=event=>{
+ event.preventDefault();
+ const name=$('inventory-name').value.trim();
+ if(!name)return;
+ saveInventory([...inventory,{id:crypto.randomUUID(),type:$('inventory-type').value,name,
+  model:$('inventory-model').value.trim(),target:$('inventory-target').value}]);
+ $('inventory-name').value='';$('inventory-model').value='';
 };
 const meterWireSeries=['sensor_raw','sensor_corrected'];
 let calibration={offset:0}, previousCalibration=null, baseline=null;
