@@ -35,13 +35,30 @@ h1{color:#edf6ee}
 #legend button[aria-pressed="true"]{background:#294737;color:#f1f8f2}
 #legend button[aria-pressed="false"]{background:#182c22;color:#bacfc0}
 #legend button::before{content:"";display:inline-block;width:.65em;height:.65em;margin-right:.45em;border-radius:50%;background:var(--series-color)}
+#assistant .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:12px}
+#assistant-answer{line-height:1.6;min-height:2em}#question{width:100%}
 </style>
 <header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
 <button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
-<button data-page="battery">Magazyn</button><button data-page="meter">Licznik</button></nav><div class="fields"><button id="language">PL / EN</button><button id="power" aria-pressed="true">Symulacja włączona</button></div></header>
+<button data-page="battery">Magazyn</button><button data-page="meter">Licznik</button><button data-page="assistant">Asystent TSI</button></nav><div class="fields"><button id="language">PL / EN</button><button id="power" aria-pressed="true">Symulacja włączona</button></div></header>
 <main><section id="technical" hidden><h1 id="tech-title"></h1><div class="card" id="tech-data"></div><div class="actions"><button id="tech-back">Wróć do diagramu</button></div></section>
 <section id="battery" hidden><h1>Magazyn energii</h1><div class="card" id="battery-data"></div><div class="actions"><button id="battery-chart">Wykres magazynu</button></div></section>
 <section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><div class="actions"><button id="meter-chart">Wykres licznika</button></div></section>
+<section id="assistant" hidden>
+<h1>Asystent TSI</h1>
+<p>Pomoc w analizie wyników i ustawianiu symulacji.</p>
+<div class="card">
+<form id="ask-form"><label>Pytanie o symulację<input id="question" required placeholder="Np. dlaczego pobieram prąd z sieci?"></label>
+<div class="actions"><button>Zapytaj</button></div></form>
+<div class="actions" id="assistant-topics">
+<button type="button" data-topic="import">Pobór z sieci</button>
+<button type="button" data-topic="battery">Praca magazynu</button>
+<button type="button" data-topic="export">Oddawanie energii</button>
+<button type="button" data-topic="cost">Koszt energii</button>
+</div>
+<p id="assistant-answer" role="status"></p>
+<div class="actions"><button id="assistant-chart" hidden>Zobacz dane na wykresie</button><button id="assistant-settings">Otwórz ustawienia</button></div>
+</div></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
@@ -193,12 +210,39 @@ function paintPower(){
 $('power').onclick=()=>{enabled=!enabled;paintPower();};
 $('language').onclick=()=>{
  english=!english;document.documentElement.lang=english?'en':'pl';
- const pages=[['Przegląd','Overview'],['Wykresy i pomiary','Charts and readings'],['Dane i sterowanie','Data and control'],['Magazyn','Battery'],['Licznik','Meter']];
+ const pages=[['Przegląd','Overview'],['Wykresy i pomiary','Charts and readings'],['Dane i sterowanie','Data and control'],['Magazyn','Battery'],['Licznik','Meter'],['Asystent TSI','TSI Assistant']];
  document.querySelectorAll('[data-page]').forEach((b,i)=>b.textContent=pages[i][+english]);
  for(const [id,pl,en] of [['battery','Magazyn energii','Battery storage'],['meter','Kalkulator licznika','Meter calculator'],['start','Przepływ energii','Energy flow'],['charts','Wykresy i pomiary','Charts and readings'],['setup','Dane i sterowanie','Data and control']]) $(id).querySelector('h1').textContent=english?en:pl;
  paintPower();
  if(result){showHour();openPage(document.querySelector('main>section:not([hidden])').id);}
 };
+const assistantSeries={
+ import:['pv_kwh','load_kwh','import_kwh','discharge_kwh'],
+ battery:['soc_kwh','charge_kwh','discharge_kwh'],
+ export:['pv_kwh','export_kwh','curtailed_kwh'],
+ cost:['import_kwh','export_kwh']
+};
+function explain(topic){
+ if(!result){$('assistant-answer').textContent='Najpierw przelicz profil.';return;}
+ const r=result.rows[index],t=result.totals,b=result.battery;
+ const energy=v=>format(v)+' kWh';
+ const details={
+  import:'Dom zużył '+energy(r.load_kwh)+', a PV bezpośrednio pokryła '+energy(Math.min(r.pv_kwh,r.load_kwh))+'. Magazyn oddał '+energy(r.discharge_kwh)+', a sieć dostarczyła '+energy(r.import_kwh)+'. '+(r.import_kwh>0&&r.soc_kwh<=b.reserve_kwh+1e-8?'Stan magazynu osiągnął poziom rezerwy lub spadł poniżej niego.':r.import_kwh>0&&b.power_kw>0&&Math.abs(r.discharge_kwh-b.power_kw)<1e-8?'Rozładowanie osiągnęło ustawiony limit mocy.':''),
+  battery:'Ładowanie: '+energy(r.charge_kwh)+'. Rozładowanie: '+energy(r.discharge_kwh)+'. Na koniec godziny w magazynie było '+energy(r.soc_kwh)+' z '+energy(b.capacity_kwh)+'. Ustawiona rezerwa to '+energy(b.reserve_kwh)+'. Możesz zmienić pojemność, moc albo rezerwę i ponownie przeliczyć profil.',
+  export:'Oddano do sieci '+energy(r.export_kwh)+', a ograniczona produkcja wyniosła '+energy(r.curtailed_kwh)+'. '+(result.export_limit_kw==null?'Symulacja pracuje bez limitu oddawania.':'Ustawiony limit oddawania to '+format(result.export_limit_kw)+' kW.'),
+  cost:'Koszt zmienny netto w tej godzinie wynosi '+format(r.cost)+' zł, a dla całego profilu '+format(t.cost)+' zł. To koszt pobranej energii pomniejszony o wartość oddanej energii według stawek z profilu.'
+ };
+ $('assistant-answer').textContent=details[topic]?labelHour(index)+' · '+details[topic]:'Zapytaj o pobór, magazyn, oddawanie energii lub koszt.';
+ $('assistant-chart').hidden=!assistantSeries[topic];
+ $('assistant-chart').onclick=()=>openChart(assistantSeries[topic]);
+}
+$('ask-form').onsubmit=event=>{
+ event.preventDefault();
+ const q=$('question').value.toLowerCase();
+ explain(/koszt|rachun|cen/.test(q)?'cost':/eksport|oddaw|ogranicz/.test(q)?'export':/pobier|pobór|z sieci/.test(q)?'import':/magazyn|akumulator|ładow/.test(q)?'battery':null);
+};
+$('assistant-topics').querySelectorAll('button').forEach(button=>button.onclick=()=>explain(button.dataset.topic));
+$('assistant-settings').onclick=()=>openPage('setup');
 $('tech-back').onclick=()=>openPage('start');
 $('hour').oninput=e=>{index=Number(e.target.value);showHour();};
 $('chart').onpointermove=e=>{if(!result||!enabled)return;index=Math.max(0,Math.min(result.rows.length-1,Math.round((e.offsetX-58)*(result.rows.length-1)/Math.max(1,$('chart').clientWidth-76))));showHour();};
