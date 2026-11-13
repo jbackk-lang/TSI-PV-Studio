@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TSI PV Studio</title>
+<style>
+:root{font:16px 'Segoe UI',sans-serif;color:#eaf3f0;background:#101b22;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0}header,main{padding:24px clamp(16px,5vw,72px)}header{border-bottom:1px solid #34474c;display:flex;flex-wrap:wrap;gap:24px;align-items:center}nav{display:flex;gap:8px;flex-wrap:wrap}
+button,input,textarea{font:inherit;color:inherit;background:#21343c;border:1px solid #4a6268;border-radius:7px;padding:8px}button{cursor:pointer}button[aria-pressed=true]{background:#bce97c;color:#15241a}h1{margin:0 0 8px;font-size:clamp(26px,5vw,44px)}p{color:#b5c9ca}.card{background:#17282f;border:1px solid #34474c;border-radius:14px;padding:20px;margin:16px 0}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}.flow-map{display:grid;gap:5px;margin-top:16px}.flow-map div{display:grid;grid-template-columns:minmax(90px,1fr) minmax(100px,2fr) minmax(90px,1fr);align-items:center;gap:8px;font-size:14px}.flow-map span:nth-child(2){text-align:center;border-bottom:2px solid #698287}.flow button{display:grid;gap:8px;text-align:left;min-height:80px}.flow strong{font-size:22px}.axis{display:flex;gap:12px;align-items:center;margin-top:20px}.axis input{flex:1;min-width:0;accent-color:#bce97c}canvas{width:100%;height:310px;display:block}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}td,th{text-align:right;padding:8px;border-bottom:1px solid #34474c;white-space:nowrap}td:first-child,th:first-child{text-align:left}.scroll{overflow:auto}.fields{display:flex;flex-wrap:wrap;gap:12px}label{display:grid;gap:5px}input[type=number]{width:135px}textarea{width:100%;min-height:140px}button:focus-visible,input:focus-visible{outline:2px solid #bce97c;outline-offset:3px}
+</style>
+<header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
+<button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
+</nav></header>
+<main>
+<section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
+<div class="card"><div class="flow" id="nodes"></div><div class="flow-map" id="links" aria-label="Kierunki przepływu energii"></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
+<div class="card" id="totals"></div></section>
+<section id="charts" hidden><h1>Wykresy i pomiary</h1><div class="card"><div class="fields" id="legend"></div><canvas id="chart" aria-label="Wykres godzinowy energii w kWh"></canvas><p id="point"></p></div><div class="card scroll"><table id="table"></table></div></section>
+<section id="setup" hidden><h1>Dane i sterowanie</h1><div class="card"><form id="settings"><div class="fields">
+<label>Pojemność magazynu (kWh)<input name="capacity_kwh" type="number" min="0" step="any" value="5" required></label>
+<label>Moc magazynu (kW)<input name="power_kw" type="number" min="0" step="any" value="2.5" required></label>
+<label>Sprawność jednego etapu (%)<input name="efficiency" type="number" min="1" max="100" step="any" value="95" required></label>
+<label>Rezerwa (kWh)<input name="reserve_kwh" type="number" min="0" step="any" value="0" required></label>
+<label>Limit eksportu (kW)<input name="limit" type="number" min="0" step="any" placeholder="Bez limitu"></label>
+</div><p>Autokonsumpcja. Magazyn ładuje się z nadwyżki PV i zasila odbiorniki przy niedoborze.</p>
+<label>Profil godzinowy CSV. Kolumny: PV (kWh); zużycie (kWh); zakup (zł/kWh); sprzedaż (zł/kWh)<textarea id="csv" required></textarea></label>
+<button>Przelicz</button><p id="status" role="status"></p></form></div></section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const metrics = [
+ ['pv_kwh','Produkcja PV','#e9bd62'],['load_kwh','Zużycie domu','#8bcde7'],
+ ['soc_kwh','Energia w magazynie','#bce97c'],['import_kwh','Pobór z sieci','#f29590'],
+ ['export_kwh','Oddanie do sieci','#d9adf2'],['charge_kwh','Ładowanie','#63c9aa'],
+ ['discharge_kwh','Rozładowanie','#e7a973'],['curtailed_kwh','Ograniczona produkcja','#a8b6bc']
+];
+const number = new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:3});
+const format = value => number.format(value);
+let result, selected='pv_kwh', index=12;
+const selectedSeries = new Set(metrics.slice(0,5).map(m=>m[0]));
+const demo=Array.from({length:24},(_,h)=>[Math.max(0, 3.5*Math.sin((h-6)*Math.PI/13)).toFixed(3), h>=17&&h<22?1.6:0.45,1.1,0.35].join(';')).join('\n');
+$('csv').value=demo;
+const labelHour = h => (h>=24?'+ '+Math.floor(h/24)+' d ': '')+String(h%24).padStart(2,'0')+':00';
+function draw(){
+ const canvas=$('chart'), width=canvas.clientWidth;
+ if(!result||!width)return;
+ const height=310, ratio=devicePixelRatio;
+ canvas.width=width*ratio;canvas.height=height*ratio;
+ const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);
+ const keys=metrics.filter(([key])=>selectedSeries.has(key));
+ const max=Math.max(1,...keys.map(([key])=>result.rows.reduce((m,r)=>Math.max(m,r[key]),0)));
+ const x=i=>58+i*(width-76)/Math.max(1,result.rows.length-1), y=v=>272-v*242/max;
+ ctx.font='12px Segoe UI';ctx.fillStyle='#b5c9ca';ctx.fillText('kWh',10,16);
+ for(let i=0;i<=5;i++){const v=max*i/5;ctx.strokeStyle='#34474c';ctx.beginPath();ctx.moveTo(58,y(v));ctx.lineTo(width-18,y(v));ctx.stroke();ctx.fillText(format(v),4,y(v)+4);}
+ const interval=Math.max(1,Math.ceil(result.rows.length/Math.max(2,Math.floor(width/85))));
+ for(let i=0;i<result.rows.length;i+=interval)ctx.fillText(labelHour(i),x(i)-14,296);
+ ctx.strokeStyle='#88999a';ctx.beginPath();ctx.moveTo(x(index),26);ctx.lineTo(x(index),272);ctx.stroke();
+ for(const [key,,color] of keys){ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();result.rows.forEach((r,i)=>i?ctx.lineTo(x(i),y(r[key])):ctx.moveTo(x(i),y(r[key])));ctx.stroke();ctx.fillStyle=color;ctx.beginPath();ctx.arc(x(index),y(result.rows[index][key]),4,0,2*Math.PI);ctx.fill();}
+ $('point').textContent=labelHour(index)+' · '+keys.map(([key,label])=>label+' '+format(result.rows[index][key])+' kWh').join(' · ');
+}
+function showHour(){
+ const r=result.rows[index];$('hour').value=index;$('clock').value=labelHour(index);
+ const cards=[['pv_kwh','☀ Produkcja PV'],['load_kwh','→ Zużycie domu'],['soc_kwh','↔ Magazyn'],['import_kwh','↔ Sieć']];
+ $('nodes').replaceChildren(...cards.map(([key,label])=>{
+  const button=document.createElement('button'), value=document.createElement('strong');
+  button.textContent=label;value.textContent=format(r[key])+' kWh';button.append(value);
+  button.setAttribute('aria-pressed',key===selected);
+  button.onclick=()=>{selected=key;showHour();$('nodes').querySelector('[aria-pressed=true]').focus();};return button;
+ }));
+ const links=[
+ ['PV','Dom',Math.min(r.pv_kwh,r.load_kwh)],['PV','Magazyn',r.charge_kwh],
+ ['Magazyn','Dom',r.discharge_kwh],['Sieć','Dom',r.import_kwh],['PV','Sieć',r.export_kwh]
+ ];
+ $('links').replaceChildren(...links.map(([from,to,value])=>{
+  const line=document.createElement('div');
+  line.style.opacity=value>0?'1':'.62';
+  for(const label of [from,format(value)+' kWh →',to]){
+   const span=document.createElement('span');span.textContent=label;line.append(span);
+  }
+  return line;
+ }));
+ const explanations={
+ pv_kwh:'Wyprodukowane '+format(r.pv_kwh)+' kWh · ograniczona produkcja '+format(r.curtailed_kwh)+' kWh',
+ load_kwh:'Zużycie '+format(r.load_kwh)+' kWh · magazyn oddał '+format(r.discharge_kwh)+' kWh · sieć dostarczyła '+format(r.import_kwh)+' kWh',
+ soc_kwh:'Stan na koniec godziny '+format(r.soc_kwh)+' kWh · ładowanie '+format(r.charge_kwh)+' kWh · rozładowanie '+format(r.discharge_kwh)+' kWh',
+ import_kwh:'Pobór '+format(r.import_kwh)+' kWh · oddanie '+format(r.export_kwh)+' kWh · koszt energii netto '+format(r.cost)+' zł'
+ };
+ $('detail').textContent=explanations[selected];draw();
+}
+function render(){
+ $('hour').max=result.rows.length-1;index=Math.min(index,result.rows.length-1);$('hour').value=index;
+ const t=result.totals;
+ $('totals').textContent='Cały profil · PV '+format(t.pv_kwh)+' kWh · pobór '+format(t.import_kwh)+' kWh · eksport '+format(t.export_kwh)+' kWh · koszt energii netto '+format(t.cost)+' zł';
+ $('table').innerHTML='<thead><tr><th>Godzina</th>'+metrics.map(([,l])=>'<th>'+l+' (kWh)</th>').join('')+'<th>Koszt netto (zł)</th></tr></thead><tbody>'+result.rows.map((r,i)=>'<tr><td>'+labelHour(i)+'</td>'+metrics.map(([k])=>'<td>'+format(r[k])+'</td>').join('')+'<td>'+format(r.cost)+'</td></tr>').join('')+'</tbody>';
+ showHour();
+}
+for(const [key,label,color] of metrics){
+ const b=document.createElement('button');b.textContent=label;b.style.borderColor=color;b.setAttribute('aria-pressed',selectedSeries.has(key));
+ b.onclick=()=>{if(selectedSeries.has(key))selectedSeries.delete(key);else selectedSeries.add(key);b.setAttribute('aria-pressed',selectedSeries.has(key));draw();};$('legend').append(b);
+}
+document.querySelectorAll('[data-page]').forEach(button=>button.onclick=()=>{
+ document.querySelectorAll('main>section').forEach(s=>s.hidden=s.id!==button.dataset.page);
+ document.querySelectorAll('[data-page]').forEach(b=>b.setAttribute('aria-pressed',b===button));draw();
+});
+$('hour').oninput=e=>{index=Number(e.target.value);showHour();};
+$('chart').onpointermove=e=>{if(!result)return;index=Math.max(0,Math.min(result.rows.length-1,Math.round((e.offsetX-58)*(result.rows.length-1)/Math.max(1,$('chart').clientWidth-76))));showHour();};
+window.addEventListener('resize',draw);
+$('settings').onsubmit=async e=>{
+ e.preventDefault();
+ try{
+ const form=new FormData(e.target);
+ const battery=Object.fromEntries(['capacity_kwh','power_kw','efficiency','reserve_kwh'].map(k=>[k,Number(form.get(k))]));battery.efficiency/=100;
+ const profile=$('csv').value.trim().split(/\r?\n/).filter(l=>l.trim()).map(l=>{
+  const fields=l.split(';');if(fields.length!==4||fields.some(v=>!v.trim()))throw Error('Każdy wiersz musi zawierać cztery wartości oddzielone średnikiem.');
+  const values=fields.map(v=>Number(v.trim().replace(',','.')));
+  if(!values.every(Number.isFinite))throw Error('Profil zawiera wartość nieliczbową.');
+  return Object.fromEntries(['pv_kwh','load_kwh','buy_price','sell_price'].map((k,i)=>[k,values[i]]));
+ });
+ if(!profile.length)throw Error('Dodaj co najmniej jeden wiersz.');
+ const response=await fetch('/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile,battery,export_limit_kw:form.get('limit')===''?null:Number(form.get('limit'))})});
+ const data=await response.json();if(!response.ok)throw Error(data.error);
+ result=data;$('source').textContent=$('csv').value===demo?'Profil demonstracyjny · dane przykładowe · przedziały godzinowe':'Profil użytkownika · przedziały godzinowe';
+ $('status').textContent='Przeliczono '+profile.length+' godzin.';render();
+ }catch(error){$('status').textContent=error.message;}
+};
+$('settings').requestSubmit();
+</script>
+</html>
