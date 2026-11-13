@@ -53,7 +53,7 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 </style>
 <header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
 <button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
-<button data-page="battery">Magazyn</button><button data-page="meter">Licznik</button><button data-page="assistant">Asystent TSI</button><button data-page="inventory">Urządzenia i czujniki</button></nav><div class="fields"><button id="language">PL / EN</button><button id="power" aria-pressed="true">Symulacja włączona</button></div></header>
+<button data-page="battery">Magazyn</button><button data-page="meter">Licznik</button><button data-page="assistant">Asystent TSI</button><button data-page="inventory">Urządzenia i czujniki</button><button data-page="analysis">Analizy</button></nav><div class="fields"><button id="language">PL / EN</button><button id="power" aria-pressed="true">Symulacja włączona</button></div></header>
 <main><section id="technical" hidden><h1 id="tech-title"></h1><div class="card" id="tech-data"></div><div class="actions"><button id="tech-back">Wróć do diagramu</button></div></section>
 <section id="battery" hidden><h1>Magazyn energii</h1><div class="card" id="battery-data"></div><div class="actions"><button id="battery-chart">Wykres magazynu</button></div></section>
 <section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><div class="actions"><button id="meter-chart">Wykres licznika</button></div><div class="card"><h2>Pomiar a symulacja</h2>
@@ -97,6 +97,10 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <label>Czujnik i jednostka<select id="history-series"></select></label>
 <canvas id="history-chart" aria-label="Wykres zapisanych próbek według czasu"></canvas>
 <p id="history-detail"></p><table><thead><tr><th>Czujnik</th><th>Czas</th><th>Wartość</th><th>Źródło</th></tr></thead><tbody id="sample-history"></tbody></table></div></section>
+<section id="analysis" hidden><h1>Analiza PV i magazynu</h1>
+<div class="card"><p id="analysis-summary" aria-live="polite"></p>
+<div class="actions"><button id="analysis-chart" type="button">Wykres produkcji i magazynu</button></div>
+<p>Obliczenia na danych symulacji. Cykl równoważny to energia oddana przez akumulator przed stratami rozładowania, podzielona przez jego pojemność.</p></div></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><p class="diagram-key" id="diagram-key"></p><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
@@ -253,7 +257,18 @@ for(const [key,label,color] of metrics){
  const b=document.createElement('button');b.textContent=label;b.dataset.metric=key;b.style.setProperty('--series-color',color);b.setAttribute('aria-pressed',selectedSeries.has(key));
  b.onclick=()=>{if(!selectedSeries.has(key)&&[...selectedSeries].some(k=>meterWireSeries.includes(k)!==meterWireSeries.includes(key))){openChart([key]);return;}if(selectedSeries.has(key))selectedSeries.delete(key);else selectedSeries.add(key);b.setAttribute('aria-pressed',selectedSeries.has(key));draw();};$('legend').append(b);
 }
+function paintEnergyAnalysis(){
+ if(!result){$('analysis-summary').textContent='Najpierw przelicz profil.';return;}
+ const t=result.totals,b=result.battery;
+ const removed=t.discharge_kwh/b.efficiency;
+ const losses=t.charge_kwh*(1-b.efficiency)+removed-t.discharge_kwh;
+ const direct=result.rows.reduce((sum,row)=>sum+row.direct_kwh,0);
+ const cycles=b.capacity_kwh?format(removed/b.capacity_kwh):'—';
+ $('analysis-summary').textContent='PV bezpośrednio do domu: '+format(direct)+' kWh · Do magazynu: '+format(t.charge_kwh)+' kWh · Z magazynu do domu: '+format(t.discharge_kwh)+' kWh · Straty magazynu: '+format(losses)+' kWh · Cykle równoważne: '+cycles;
+}
+$('analysis-chart').onclick=()=>openChart(['pv_kwh','direct_kwh','charge_kwh','discharge_kwh','soc_kwh']);
 function openPage(page){
+ if(page==='analysis')paintEnergyAnalysis();
  if(page==="meter")requestAnimationFrame(paintComparison);
  if(page==='inventory')paintInventory();
  if(page==='sensor')paintSensor();
@@ -276,7 +291,7 @@ function paintPower(){
 $('power').onclick=()=>{enabled=!enabled;paintPower();if(result)showHour();};
 $('language').onclick=()=>{
  english=!english;document.documentElement.lang=english?'en':'pl';
- const pages=[['Przegląd','Overview'],['Wykresy i pomiary','Charts and readings'],['Dane i sterowanie','Data and control'],['Magazyn','Battery'],['Licznik','Meter'],['Asystent TSI','TSI Assistant'],['Urządzenia i czujniki','Devices and sensors']];
+ const pages=[['Przegląd','Overview'],['Wykresy i pomiary','Charts and readings'],['Dane i sterowanie','Data and control'],['Magazyn','Battery'],['Licznik','Meter'],['Asystent TSI','TSI Assistant'],['Urządzenia i czujniki','Devices and sensors'],['Analizy','Analysis']];
  document.querySelectorAll('[data-page]').forEach((b,i)=>b.textContent=pages[i][+english]);
  for(const [id,pl,en] of [['battery','Magazyn energii','Battery storage'],['meter','Kalkulator licznika','Meter calculator'],['start','Przepływ energii','Energy flow'],['charts','Wykresy i pomiary','Charts and readings'],['setup','Dane i sterowanie','Data and control']]) $(id).querySelector('h1').textContent=english?en:pl;
  paintPower();
