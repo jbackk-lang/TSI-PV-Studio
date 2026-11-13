@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import socket
 import struct
+from math import isfinite
 
 from simulation import Battery, simulate
 
@@ -14,18 +15,31 @@ def read_register(data):
     for value, low, high in ((port, 1, 65535), (unit, 0, 255), (address, 0, 65535)):
         if type(value) is not int or not low <= value <= high:
             raise ValueError("Parametr Modbus poza zakresem.")
+    kind = data.get("format", "u16")
+    if kind not in ("u16", "s16", "u32", "s32"):
+        raise ValueError("Nieobsługiwany format rejestru.")
+    count = 2 if kind.endswith("32") else 1
+    scale = data.get("scale", 1)
+    if type(scale) not in (int, float) or not isfinite(scale) or scale == 0 or address + count > 65536:
+        raise ValueError("Sprawdź skalę i zakres rejestrów.")
     function = 4 if data.get("input") is True else 3
     with socket.create_connection((host, port), timeout=3) as conn, conn.makefile("rb") as stream:
-        conn.sendall(struct.pack(">HHHBBHH", 1, 0, 6, unit, function, address, 1))
+        conn.sendall(struct.pack(">HHHBBHH", 1, 0, 6, unit, function, address, count))
         transaction, protocol, length, device = struct.unpack(">HHHB", stream.read(7))
-        if (transaction, protocol, device) != (1, 0, unit) or length not in (3, 5):
+        if (transaction, protocol, device) != (1, 0, unit) or length not in (3, 3 + 2 * count):
             raise ValueError("Nieprawidłowy nagłówek odpowiedzi Modbus.")
         body = stream.read(length - 1)
         if len(body) == 2 and body[0] == function | 128:
             raise ValueError(f"Urządzenie zwróciło wyjątek Modbus {body[1]}.")
-        if len(body) != 4 or body[:2] != bytes((function, 2)):
+        if len(body) != 2 + 2 * count or body[:2] != bytes((function, 2 * count)):
             raise ValueError("Nieprawidłowa odpowiedź rejestru.")
-        return int.from_bytes(body[2:], "big")
+        raw = body[2:]
+        if count == 2 and data.get("swap") is True:
+            raw = raw[2:] + raw[:2]
+        value = int.from_bytes(raw, "big", signed=kind.startswith("s")) * scale
+        if not isfinite(value):
+            raise ValueError("Wynik poza zakresem liczbowym.")
+        return value
 
 
 class Handler(BaseHTTPRequestHandler):
