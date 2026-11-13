@@ -190,7 +190,7 @@ function showHour(){
   add.setAttribute('aria-label','Dodaj czujnik · '+label);
   add.onclick=()=>{openPage('inventory');editInventory();$('inventory-type').value='sensor';$('inventory-target').value=id;$('inventory-name').focus();};
   actions.append(b,add);
-  for(const item of inventory.filter(entry=>entry.target===id&&(entry.protocol==='Modbus TCP'||entry.protocol==='demo'))){
+  for(const item of inventory.filter(entry=>entry.target===id&&(['Modbus TCP','Modbus RTU'].includes(entry.protocol)||entry.protocol==='demo'))){
    const sample=document.createElement('small');
    sample.textContent=item.name+' · '+sampleLabel(item);
    actions.append(sample);
@@ -319,7 +319,7 @@ function explain(topic){
  }
  if(topic==='sample'){
   $('assistant-chart').hidden=true;
-  const meters=inventory.filter(item=>item.target==='wire-4-1'&&['Modbus TCP','demo'].includes(item.protocol));
+  const meters=inventory.filter(item=>item.target==='wire-4-1'&&['Modbus TCP','Modbus RTU','demo'].includes(item.protocol));
   const lines=meters.map(item=>{
    const sample=latestSamples.get(item.id);
    if(!sample)return item.name+': brak próbki.';
