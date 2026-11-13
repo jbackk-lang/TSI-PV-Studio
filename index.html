@@ -88,7 +88,10 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <label>Łącze<select id="inventory-link"><option value="">Bez konfiguracji</option><option>Ethernet</option><option>Wi-Fi</option><option>RS-485</option><option>Bluetooth LE</option></select></label>
 <div id="connection-fields" class="fields"></div>
 <button type="button" id="meter-demo">Dodaj próbkę demo</button><button id="inventory-save">Zapisz wpis</button><button type="button" id="inventory-new">Nowy wpis</button></form><p id="inventory-status" role="status"></p></div>
-<div class="card scroll"><table><thead><tr><th>Typ</th><th>Nazwa</th><th>Model</th><th>Miejsce</th><th>Łącze</th><th>Stan</th><th></th></tr></thead><tbody id="inventory-list"></tbody></table></div><div class="card scroll"><h2>Historia próbek</h2><table><thead><tr><th>Czujnik</th><th>Czas</th><th>Wartość</th><th>Źródło</th></tr></thead><tbody id="sample-history"></tbody></table></div></section>
+<div class="card scroll"><table><thead><tr><th>Typ</th><th>Nazwa</th><th>Model</th><th>Miejsce</th><th>Łącze</th><th>Stan</th><th></th></tr></thead><tbody id="inventory-list"></tbody></table></div><div class="card scroll"><h2>Historia próbek</h2>
+<label>Czujnik i jednostka<select id="history-series"></select></label>
+<canvas id="history-chart" aria-label="Wykres zapisanych próbek według czasu"></canvas>
+<p id="history-detail"></p><table><thead><tr><th>Czujnik</th><th>Czas</th><th>Wartość</th><th>Źródło</th></tr></thead><tbody id="sample-history"></tbody></table></div></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><p class="diagram-key" id="diagram-key"></p><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
@@ -289,6 +292,34 @@ function saveInventory(next){
  paintInventory();
  return true;
 }
+function drawHistory(){
+ const canvas=$('history-chart'), width=canvas.clientWidth;
+ if(!width)return;
+ const selected=$('history-series').value;
+ const rows=history.filter(sample=>JSON.stringify([sample.id,sample.unit,sample.source])===selected);
+ const ctx=canvas.getContext('2d'), ratio=devicePixelRatio;
+ canvas.width=width*ratio;canvas.height=310*ratio;ctx.scale(ratio,ratio);
+ if(!rows.length){$('history-detail').textContent='Brak zapisanych próbek.';return;}
+ const low=Math.min(0,...rows.map(row=>row.value)), high=Math.max(0,...rows.map(row=>row.value));
+ const first=rows[0].time, last=rows.at(-1).time;
+ const x=t=>first===last?width/2:62+(t-first)/Math.max(1,last-first)*(width-82);
+ const y=v=>high===low?150:268-(v-low)/(high-low)*234;
+ ctx.font='12px Segoe UI';ctx.fillStyle='#d2e5d6';ctx.fillText(rows[0].unit,8,16);
+ for(let step=0;step<=(high===low?0:4);step++){
+  const v=low+(high-low)*step/4;
+  ctx.strokeStyle='#395447';ctx.beginPath();ctx.moveTo(62,y(v));ctx.lineTo(width-20,y(v));ctx.stroke();
+  ctx.fillText(format(v),4,y(v)+4);
+ }
+ ctx.strokeStyle='#a9e294';ctx.lineWidth=2;ctx.beginPath();
+ rows.forEach((row,i)=>i?ctx.lineTo(x(row.time),y(row.value)):ctx.moveTo(x(row.time),y(row.value)));ctx.stroke();
+ ctx.fillStyle='#a9e294';
+ for(const row of rows){ctx.beginPath();ctx.arc(x(row.time),y(row.value),4,0,2*Math.PI);ctx.fill();}
+ ctx.fillStyle='#d2e5d6';ctx.fillText(new Date(first).toLocaleTimeString(),62,296);
+ if(first!==last&&width>230)ctx.fillText(new Date(last).toLocaleTimeString(),width-86,296);
+ $('history-detail').textContent=rows[0].source+' · '+rows.length+' próbek · ostatnia: '+format(rows.at(-1).value)+' '+rows[0].unit;
+}
+$('history-series').onchange=drawHistory;
+window.addEventListener('resize',drawHistory);
 function paintInventory(){
  const target=$('inventory-target'),selected=target.value;
  target.replaceChildren(new Option('Bez przypisania',''),...[...diagramTargets].map(([id,label])=>new Option(label,id)));
@@ -311,6 +342,13 @@ function paintInventory(){
   }
   return row;
  }));
+ const series=$('history-series'), previous=series.value;
+ const options=new Map(history.filter(sample=>inventory.some(item=>item.id===sample.id)).map(sample=>[
+  JSON.stringify([sample.id,sample.unit,sample.source]), sample.name+' · '+sample.unit+' · '+sample.source
+ ]));
+ series.replaceChildren(...[...options].map(([key,label])=>new Option(label,key)));
+ if(options.has(previous))series.value=previous;
+ requestAnimationFrame(drawHistory);
  $('sample-history').replaceChildren(...history.filter(sample=>inventory.some(item=>item.id===sample.id)).slice().reverse().map(sample=>{
   const row=document.createElement('tr');
   for(const value of [sample.name,new Date(sample.time).toLocaleString(),format(sample.value)+' '+sample.unit,sample.source]){
