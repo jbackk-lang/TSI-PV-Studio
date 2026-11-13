@@ -41,3 +41,9 @@ Panel **Czujniki** będzie dostępny z menu oraz z dymków przy urządzeniach i 
 - **Odczyty:** wartość, jednostka, czas ostatniej próbki i źródło danych. Wykres rozróżni pomiar, dane demonstracyjne i wynik symulacji.
 - **Stany:** odczyt poprawny, ostrzeżenie, brak danych, odczyt poza zakresem i wymagana kalibracja. Stan czujnika będzie widoczny obok stanu urządzenia.
 - **Kalibracja:** wpisanie pomiarów odniesienia, porównanie odczytu surowego i skorygowanego oraz zapis współczynników z datą i możliwością przywrócenia poprzedniej wersji. Pierwsza wersja zastosuje korektę w analizie danych.
+
+## Demo i wymagania wersji 0.1
+
+[Zapisz demo jako START.html](https://raw.githubusercontent.com/jbackk-lang/TSI-PV-Studio/main/demo/START.html) i otwórz w przeglądarce z JavaScriptem. Plik ma około 1,6 KB i pokazuje bilans dwóch godzin.
+
+Pełna lokalna paczka ma około 126 KB po rozpakowaniu i 48 KB jako ZIP. Szacowane minimum na Windows x64 to 2 rdzenie, 4 GB RAM łącznie z systemem oraz 1 GB wolnego miejsca na Pythona 3.12 i biblioteki. GPU nie jest potrzebne do obecnych obliczeń. Testy obliczeń wykonano na Intel Core i5-3470T. Minimum RAM nie zostało zmierzone.
