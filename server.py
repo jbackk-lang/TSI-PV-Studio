@@ -103,7 +103,7 @@ class Handler(BaseHTTPRequestHandler):
         self.respond(200, mime, (Path(__file__).parent / filename).read_bytes())
 
     def do_POST(self):
-        if self.path not in ("/simulate", "/modbus-read", "/pv-battery-analysis"):
+        if self.path not in ("/simulate", "/modbus-read", "/pv-battery-analysis", "/cable-analysis"):
             self.send_error(404)
             return
         if self.path == "/modbus-read" and self.headers.get("Origin") != "http://" + self.headers.get("Host", ""):
@@ -114,10 +114,14 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < size <= 1_000_000:
                 raise ValueError("Nieprawidłowy rozmiar danych.")
             data = json.loads(self.rfile.read(size))
-            if self.path == "/pv-battery-analysis":
-                from integrations.pv_battery import analyze
+            if self.path in ("/pv-battery-analysis", "/cable-analysis"):
                 try:
-                    payload = {"rows": analyze(data["rows"])}
+                    if self.path == "/cable-analysis":
+                        from integrations.cable_analysis import analyze
+                        payload = analyze(data)
+                    else:
+                        from integrations.pv_battery import analyze
+                        payload = {"rows": analyze(data["rows"])}
                     body = json.dumps(payload, allow_nan=False).encode()
                 except ImportError:
                     self.respond(503, "application/json", b'{"error":"Zainstaluj NumPy: python -m pip install numpy"}')
