@@ -100,7 +100,7 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <section id="analysis" hidden><h1>Analiza PV i magazynu</h1>
 <div class="card"><p id="analysis-summary" aria-live="polite"></p>
 <div class="actions"><button id="analysis-chart" type="button">Wykres produkcji i magazynu</button></div>
-<p>Obliczenia na danych symulacji. Cykl równoważny to energia oddana przez akumulator przed stratami rozładowania, podzielona przez jego pojemność.</p></div><div class="card"><h2>Wpływ niedoboru PV na akumulator</h2>
+<p>Obliczenia na danych symulacji. Cykl równoważny to energia oddana przez akumulator przed stratami rozładowania, podzielona przez jego pojemność.</p></div><div class="card" id="coupling-panel"><h2 tabindex="-1">Wpływ niedoboru PV na akumulator</h2><button type="button" id="coupling-back">Wróć do schematu</button>
 <p>Model szacuje prąd i rezystancję na podstawie osobnego profilu. Wyniki służą do analizy scenariusza.</p>
 <form id="coupling"><label>Próbki: czas (dni); prąd bazowy (A); niedobór PV (0–1)
 <textarea required>0;10;0
@@ -216,7 +216,14 @@ function showHour(){
   const badge=document.createElement('span');badge.className='device-state';
   badge.textContent={working:tr('Praca','Operating'),idle:tr('Postój','Idle'),paused:tr('Wstrzymanie','Paused'),error:tr('Błąd obliczeń','Calculation error')}[state];
   b.append(name,symbol,reading,badge);
-  b.onclick=action;group.append(b);sensor(group,label,keys,group.classList.contains("device")?"device-"+col+"-"+row:"wire-"+col+"-"+row);place(group,col,row);
+  b.onclick=action;group.append(b);sensor(group,label,keys,group.classList.contains("device")?"device-"+col+"-"+row:"wire-"+col+"-"+row);if(col===3&&row===3){
+   const prediction=document.createElement('button');
+   prediction.className='reading';
+   prediction.textContent=tr('↗ Predykcja','↗ Prediction');
+   prediction.onclick=openCoupling;
+   group.querySelector('.sensor-actions').append(prediction);
+  }
+  place(group,col,row);
  }
  const energy=v=>format(v)+' kWh';
  function wire(col,row,label,value,arrow,keys,vertical=false){
@@ -382,6 +389,16 @@ $('settings').onsubmit=async e=>{
 </script>
 <script src="/panels/meter-comparison.js"></script>
 <script>
+function openCoupling(){
+ openPage('analysis');
+ const panel=$('coupling-panel');
+ panel.querySelector('h2').focus({preventScroll:true});
+ panel.scrollIntoView({block:'start'});
+}
+$('coupling-back').onclick=()=>{
+ openPage('start');
+ $('links').querySelector('.device button')?.focus();
+};
 let couplingRows=[];
 function drawCoupling(){
  const canvas=$('coupling-chart'), width=canvas.clientWidth;
