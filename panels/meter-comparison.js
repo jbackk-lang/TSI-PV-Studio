@@ -6,7 +6,7 @@ function comparisonRows(){
  const start=new Date(comparisonStart.value).getTime();
  if(!result||!Number.isFinite(start))return [];
  const selected=comparisonMeter.value||'comparison-demo';
- const samples=history.filter(s=>s.id===selected&&s.source==='Modbus TCP'&&['W','kW'].includes(s.unit)).sort((a,b)=>a.time-b.time);
+ const samples=history.filter(s=>s.id===selected&&['Modbus TCP','Modbus RTU'].includes(s.source)&&['W','kW'].includes(s.unit)).sort((a,b)=>a.time-b.time);
  return result.rows.map((r,i)=>{
   const time=start+i*3600000;
   if(selected==='comparison-demo'){
@@ -27,7 +27,7 @@ function comparisonRows(){
 }
 function paintComparison(){
  const selected=comparisonMeter.value;
- const meters=inventory.filter(item=>item.target==='wire-4-1'&&item.protocol==='Modbus TCP');
+ const meters=inventory.filter(item=>item.target==='wire-4-1'&&['Modbus TCP','Modbus RTU'].includes(item.protocol));
  comparisonMeter.replaceChildren(new Option('Dane demonstracyjne','comparison-demo'),...meters.map(item=>new Option(item.name,item.id)));
  if([...comparisonMeter.options].some(option=>option.value===selected))comparisonMeter.value=selected;
  $('comparison-note').textContent=comparisonMeter.value==='comparison-demo'?'Demo: pomiar przykładowy z luką o 11:00 i 12:00 przy profilu od północy.':'Pobór oznacza ujemną moc w W lub kW. Luki powyżej pięciu minut pozostają bez oszacowania.';
@@ -59,7 +59,7 @@ function paintComparison(){
 $('comparison-download').onclick=()=>{
  const rows=comparisonRows();
  if(!rows.length)return;
- const source=comparisonMeter.value==='comparison-demo'?'Demo':'Modbus TCP';
+ const source=comparisonMeter.value==='comparison-demo'?'Demo':inventory.find(item=>item.id===comparisonMeter.value)?.protocol||'Modbus';
  const decimal=value=>String(Number(value.toFixed(6))).replace('.',',');
  const header='Czas (UTC);Symulacja (kWh);Pomiar (kWh);Różnica (kWh);Minuty danych;Źródło';
  const lines=rows.map(row=>[
