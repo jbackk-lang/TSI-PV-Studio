@@ -118,7 +118,19 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <div class="actions"><button>Oblicz</button><button type="button" id="cable-back">Wróć do schematu</button></div>
 </form><p id="cable-result" role="status"></p>
 <details id="cable-profile" hidden><summary>Przebieg godzinowy</summary>
-<div class="scroll"><table><thead><tr><th>Godzina profilu</th><th>Obciążenie (W)</th><th>Temperatura modelowana (°C)</th></tr></thead><tbody id="cable-rows"></tbody></table></div></details></div></section>
+<div class="scroll"><table><thead><tr><th>Godzina profilu</th><th>Obciążenie (W)</th><th>Temperatura modelowana (°C)</th></tr></thead><tbody id="cable-rows"></tbody></table></div></details></div><div class="card"><h2>Porównanie przekrojów</h2><p>Model rezystancyjny dla DC oraz AC przy cos φ ≈ 1. Obciążalność podaj z dokumentacji kabla dla faktycznego ułożenia.</p>
+<form id="cable-sizing"><div class="fields">
+<label>Obwód<select name="mode"><option value="dc">DC</option><option value="ac1">AC jednofazowy</option><option value="ac3">AC trójfazowy symetryczny</option></select></label>
+<label>Żyła<select name="material"><option value="cu">Miedź</option><option value="al">Aluminium</option></select></label>
+<label>Długość w jedną stronę (m)<input type="number" name="length" min="0.01" max="10000" step="any" required></label>
+<label>Napięcie obwodu (V, międzyfazowe dla AC 3F)<input type="number" name="voltage" min="0.1" max="1500" step="any" required></label>
+<label>Prąd roboczy (A na żyłę)<input type="number" name="current" min="0.01" max="10000" step="any" required></label>
+<label>Limit spadku (%)<input type="number" name="limit" min="0.01" max="100" step="any" required></label>
+</div><label>Warianty: przekrój (mm²); obciążalność (A, opcjonalnie)<textarea name="variants" required>2,5;
+4;
+6;
+10;</textarea></label><button>Porównaj przekroje</button></form>
+<p id="sizing-status" role="status"></p><div class="scroll"><table><thead><tr><th>mm²</th><th>Spadek (V)</th><th>Spadek (%)</th><th>Straty (W)</th><th>Obciążalność</th></tr></thead><tbody id="sizing-results"></tbody></table></div></div></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><p class="diagram-key" id="diagram-key"></p><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
@@ -490,6 +502,40 @@ $('cable-analysis').onsubmit=async event=>{
   $('cable-profile').hidden=false;
  }catch(error){$('cable-result').textContent=error.message;}
  finally{button.disabled=false;}
+};
+function compareSections({mode,material,length,voltage,current,limit},variants){
+ const phaseFactor=mode==='ac3'?Math.sqrt(3):2;
+ const conductorCount=mode==='ac3'?3:2;
+ return variants.sort((a,b)=>a.section-b.section).map(({section,ampacity})=>{
+  const resistance=(material==='cu'?0.0237:0.0376)*length/section;
+  const drop=phaseFactor*current*resistance, percent=100*drop/voltage;
+  return {section,drop,percent,loss:conductorCount*current**2*resistance,ampacity,
+   passes:percent<=limit&&ampacity!==null&&current<=ampacity};
+ });
+}
+$('cable-sizing').onsubmit=event=>{
+ event.preventDefault();
+ const f=new FormData(event.target);
+ $('sizing-results').replaceChildren();
+ try{
+  const variants=f.get('variants').trim().split(/\r?\n/).filter(line=>line.trim()).map(line=>{
+   const fields=line.split(';').map(value=>value.trim().replace(',','.'));
+   const section=Number(fields[0]),ampacity=fields[1]?Number(fields[1]):null;
+   if(fields.length>2||!Number.isFinite(section)||section<0.1||section>50||ampacity!==null&&(!Number.isFinite(ampacity)||ampacity<=0))
+    throw Error('Podaj przekrój od 0,1 do 50 mm² i opcjonalnie dodatnią obciążalność.');
+   return {section,ampacity};
+  });
+  if(!variants.length||variants.length>50)throw Error('Podaj od 1 do 50 wariantów.');
+  const settings=Object.fromEntries(['length','voltage','current','limit'].map(key=>[key,Number(f.get(key))]));
+  const rows=compareSections({...settings,mode:f.get('mode'),material:f.get('material')},variants);
+  for(const row of rows){
+   const tr=$('sizing-results').insertRow();
+   for(const value of [format(row.section),format(row.drop),format(row.percent),format(row.loss),
+    row.ampacity===null?'Brak danych':format(row.ampacity)+' A · '+(settings.current<=row.ampacity?'spełnia':'za mała')])tr.insertCell().textContent=value;
+  }
+  const candidate=rows.find(row=>row.passes);
+  $('sizing-status').textContent=candidate?'Najmniejszy z podanych wariantów spełniający oba wpisane kryteria: '+format(candidate.section)+' mm².':'Brak wariantu potwierdzonego według obu kryteriów.';
+ }catch(error){$('sizing-status').textContent=error.message;}
 };
 $('settings').requestSubmit();
 </script>
