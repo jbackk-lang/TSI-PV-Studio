@@ -11,13 +11,18 @@ button,input,textarea{font:inherit;color:inherit;background:#21343c;border:1px s
 
 #nodes{display:none}.schematic{display:grid;grid-template-columns:repeat(7,minmax(92px,1fr));grid-template-rows:auto 58px auto;align-items:center;min-width:700px;gap:0}.schematic .device{text-align:center;z-index:1}.device-main{display:grid;width:100%;justify-items:center;gap:6px;background:#21343c;padding:12px 4px}.device-main strong{font-size:14px}.device-main small{font-variant-numeric:tabular-nums}.symbol{font-size:32px;color:#bce97c}.wire{text-align:center;position:relative;min-width:0}.wire::before{content:"";position:absolute;top:50%;left:0;right:0;border-top:3px solid #5b7278}.wire.active::before{border-color:#bce97c}.wire button{position:relative;padding:3px 5px;font-size:12px}.wire .reading{display:block;margin:3px auto 0}.wire.vertical::before{top:0;bottom:0;left:50%;right:auto;border-top:0;border-left:3px solid #5b7278}.wire.vertical.active::before{border-color:#bce97c}.device .reading{font-size:12px;margin-top:4px}.diagram-scroll{overflow:auto;padding-bottom:8px}.schematic [data-flow=idle]{color:#a8b6bc}
 header nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}header nav button{min-height:44px;white-space:nowrap}header>.fields{display:grid;grid-template-columns:1fr 1fr;gap:6px}header>.fields button{min-height:44px}.schematic{grid-template-rows:148px 82px 148px}.schematic .device{display:grid;grid-template-rows:104px 30px;align-self:stretch;align-content:center;gap:4px}.schematic .device-main{height:104px;grid-template-rows:35px 28px 16px;align-items:center;gap:2px;padding:6px 4px}.schematic .reading{height:28px;min-width:76px;margin:0 auto}.schematic .wire{display:grid;grid-template-rows:28px 28px;justify-items:center;gap:4px}.schematic .wire::before{top:14px}.schematic .wire.vertical{align-self:stretch;align-content:center}.schematic .wire.vertical::before{top:0}.schematic .wire button:first-child{min-width:85px}@media(max-width:760px){header nav{width:100%;grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}header nav button{white-space:normal}}
+
+#legend,#battery>.actions,#meter>.actions,#technical>.actions,#settings>.actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+#legend{margin-bottom:14px}
+#legend button,.actions button{min-height:44px;width:100%;margin:0;text-align:center;line-height:1.2}
+@media(max-width:900px){#legend,#battery>.actions,#meter>.actions,#technical>.actions,#settings>.actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
 <button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
 <button data-page="battery">Magazyn</button><button data-page="meter">Licznik</button></nav><div class="fields"><button id="language">PL / EN</button><button id="power" aria-pressed="true">Symulacja włączona</button></div></header>
-<main><section id="technical" hidden><h1 id="tech-title"></h1><div class="card" id="tech-data"></div><button id="tech-back">Wróć do diagramu</button></section>
-<section id="battery" hidden><h1>Magazyn energii</h1><div class="card" id="battery-data"></div><button id="battery-chart">Wykres magazynu</button></section>
-<section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><button id="meter-chart">Wykres licznika</button></section>
+<main><section id="technical" hidden><h1 id="tech-title"></h1><div class="card" id="tech-data"></div><div class="actions"><button id="tech-back">Wróć do diagramu</button></div></section>
+<section id="battery" hidden><h1>Magazyn energii</h1><div class="card" id="battery-data"></div><div class="actions"><button id="battery-chart">Wykres magazynu</button></div></section>
+<section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><div class="actions"><button id="meter-chart">Wykres licznika</button></div></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
@@ -30,7 +35,7 @@ header nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}head
 <label>Limit eksportu (kW)<input name="limit" type="number" min="0" step="any" placeholder="Bez limitu"></label>
 </div><p>Autokonsumpcja. Magazyn ładuje się z nadwyżki PV i zasila odbiorniki przy niedoborze.</p>
 <label>Profil godzinowy CSV. Kolumny: PV (kWh); zużycie (kWh); zakup (zł/kWh); sprzedaż (zł/kWh)<textarea id="csv" required></textarea></label>
-<button>Przelicz</button><p id="status" role="status"></p></form></div></section>
+<div class="actions"><button>Przelicz</button></div><p id="status" role="status"></p></form></div></section>
 </main>
 <script>
 const $ = id => document.getElementById(id);
