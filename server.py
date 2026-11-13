@@ -44,10 +44,16 @@ def read_register(data):
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path != "/":
+        pages = {
+            "/": ("index.html", "text/html; charset=utf-8"),
+            "/panels/meter-comparison.js": ("panels/meter-comparison.js", "text/javascript; charset=utf-8"),
+        }
+        page = pages.get(self.path)
+        if page is None:
             self.send_error(404)
             return
-        self.respond(200, "text/html; charset=utf-8", Path(__file__).with_name("index.html").read_bytes())
+        filename, mime = page
+        self.respond(200, mime, (Path(__file__).parent / filename).read_bytes())
 
     def do_POST(self):
         if self.path not in ("/simulate", "/modbus-read"):
