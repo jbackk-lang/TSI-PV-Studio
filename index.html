@@ -59,7 +59,7 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><div class="actions"><button id="meter-chart">Wykres licznika</button></div><div class="card"><h2>Pomiar a symulacja</h2>
 <div class="fields"><label>Początek profilu<input id="comparison-start" type="datetime-local" step="3600"></label>
 <label>Źródło pomiaru<select id="comparison-meter"></select></label></div>
-<p id="comparison-note"></p><canvas id="comparison-chart" aria-label="Porównanie poboru w kWh"></canvas>
+<div class="actions"><button id="comparison-download" type="button" disabled>Pobierz porównanie CSV</button></div><p id="comparison-note"></p><canvas id="comparison-chart" aria-label="Porównanie poboru w kWh"></canvas>
 <div class="scroll"><table><thead><tr><th>Godzina</th><th>Symulacja (kWh)</th><th>Pomiar (kWh)</th><th>Różnica (kWh)</th><th>Minuty danych</th></tr></thead><tbody id="comparison-table"></tbody></table></div>
 </div></section>
 <section id="assistant" hidden>
@@ -614,6 +614,7 @@ function paintComparison(){
  if([...comparisonMeter.options].some(option=>option.value===selected))comparisonMeter.value=selected;
  $('comparison-note').textContent=comparisonMeter.value==='comparison-demo'?'Demo: pomiar przykładowy z luką o 11:00 i 12:00 przy profilu od północy.':'Pobór oznacza ujemną moc w W lub kW. Luki powyżej pięciu minut pozostają bez oszacowania.';
  const rows=comparisonRows();
+ $('comparison-download').disabled=!rows.length;
  $('comparison-table').replaceChildren(...rows.map(r=>{
   const row=document.createElement('tr');
   for(const v of [comparisonTime(r.time),format(r.predicted),r.measured===null?'Brak pełnych danych':format(r.measured),r.measured===null?'—':format(r.measured-r.predicted),format(r.coverage)])row.insertCell().textContent=v;
@@ -637,6 +638,23 @@ function paintComparison(){
  const step=Math.max(1,Math.ceil(rows.length/Math.max(1,Math.floor(width/115))));
  rows.forEach((r,i)=>{if(i%step===0)ctx.fillText(comparisonTime(r.time),Math.min(x(i),width-100),287);});
 }
+$('comparison-download').onclick=()=>{
+ const rows=comparisonRows();
+ if(!rows.length)return;
+ const source=comparisonMeter.value==='comparison-demo'?'Demo':'Modbus TCP';
+ const decimal=value=>String(Number(value.toFixed(6))).replace('.',',');
+ const header='Czas (UTC);Symulacja (kWh);Pomiar (kWh);Różnica (kWh);Minuty danych;Źródło';
+ const lines=rows.map(row=>[
+  new Date(row.time).toISOString(),decimal(row.predicted),
+  row.measured===null?'':decimal(row.measured),
+  row.measured===null?'':decimal(row.measured-row.predicted),
+  decimal(row.coverage),source
+ ].join(';'));
+ const url=URL.createObjectURL(new Blob(['\uFEFF'+[header,...lines].join('\r\n')],{type:'text/csv;charset=utf-8'}));
+ const download=document.createElement('a');
+ download.href=url;download.download='porownanie-licznika.csv';download.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
 comparisonStart.onchange=paintComparison;
 comparisonMeter.onchange=paintComparison;
 window.addEventListener('resize',()=>{if(!$('meter').hidden)paintComparison();});
