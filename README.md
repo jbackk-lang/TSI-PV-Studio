@@ -4,7 +4,9 @@ Samodzielna aplikacja do analizy fotowoltaiki, magazynu energii i wymiany z siec
 
 ## Uruchomienie aplikacji
 
-Uruchom `python server.py` i otwórz `http://127.0.0.1:8767/`. Aplikacja startuje z 24 godzinami oznaczonych danych demonstracyjnych. W panelu **Dane i sterowanie** możesz wkleić własny profil godzinowy CSV i zmienić parametry magazynu lub limit oddawania energii.
+Skopiuj cały folder aplikacji. Na Windows uruchom `START.bat` albo wykonaj `python server.py`. Potrzebny jest Python 3. Aplikacja korzysta z biblioteki standardowej, własnych plików i profilu demonstracyjnego. Nie wymaga instalacji bibliotek ani pobierania danych z innych repozytoriów.
+
+Otwórz `http://127.0.0.1:8767/`. Aplikacja startuje z 24 godzinami oznaczonych danych demonstracyjnych. W panelu **Dane i sterowanie** możesz wkleić własny profil godzinowy CSV i zmienić parametry magazynu lub limit oddawania energii.
 
 Ekran **Przegląd** pokazuje kierunki przepływu energii dla wybranej godziny. Panel **Wykresy i pomiary** umożliwia włączanie serii, odczyt punktu i sprawdzenie wartości godzinowych w tabeli. Wykresy opisano w kWh, parametry mocy w kW, a koszt zmienny w zł. 
 
