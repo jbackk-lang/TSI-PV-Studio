@@ -33,3 +33,11 @@ result = simulate(profile, Battery(capacity_kwh=4, power_kw=2), export_limit_kw=
 ```
 
 Każdy wpis to jedna godzina. `rows` zasila wykresy i tabele, `totals` zasila karty podsumowania, a `battery` i `export_limit_kw` zachowują założenia. Wynik można zapisać jako JSON. Sprawność jest stosowana osobno przy ładowaniu i rozładowaniu. Kalkulator kosztu obejmuje podane stawki jednostkowe. Opłaty stałe, dystrybucja i reguły rozliczeń wymagają osobnego modułu.
+
+## Czujniki i kalibracja — plan
+
+Panel **Czujniki** będzie dostępny z menu oraz z dymków przy urządzeniach i przewodach. Wykorzystamy istniejący moduł kontroli czujników TIMDR po sprawdzeniu jego wejść, wyników i zależności. Potrzebne elementy trafią do paczki PV Studio, aby aplikacja działała samodzielnie.
+
+- **Odczyty:** wartość, jednostka, czas ostatniej próbki i źródło danych. Wykres rozróżni pomiar, dane demonstracyjne i wynik symulacji.
+- **Stany:** odczyt poprawny, ostrzeżenie, brak danych, odczyt poza zakresem i wymagana kalibracja. Stan czujnika będzie widoczny obok stanu urządzenia.
+- **Kalibracja:** wpisanie pomiarów odniesienia, porównanie odczytu surowego i skorygowanego oraz zapis współczynników z datą i możliwością przywrócenia poprzedniej wersji. Pierwsza wersja zastosuje korektę w analizie danych.
