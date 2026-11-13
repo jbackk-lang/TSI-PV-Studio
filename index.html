@@ -100,7 +100,14 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <section id="analysis" hidden><h1>Analiza PV i magazynu</h1>
 <div class="card"><p id="analysis-summary" aria-live="polite"></p>
 <div class="actions"><button id="analysis-chart" type="button">Wykres produkcji i magazynu</button></div>
-<p>Obliczenia na danych symulacji. Cykl równoważny to energia oddana przez akumulator przed stratami rozładowania, podzielona przez jego pojemność.</p></div></section>
+<p>Obliczenia na danych symulacji. Cykl równoważny to energia oddana przez akumulator przed stratami rozładowania, podzielona przez jego pojemność.</p></div><div class="card"><h2>Wpływ niedoboru PV na akumulator</h2>
+<p>Model szacuje prąd i rezystancję na podstawie osobnego profilu. Wyniki służą do analizy scenariusza.</p>
+<form id="coupling"><label>Próbki: czas (dni); prąd bazowy (A); niedobór PV (0–1)
+<textarea required>0;10;0
+0.5;10;0.25
+1;10;0.5</textarea></label><button>Oblicz scenariusz</button></form>
+<p id="coupling-status" role="status"></p><label>Wielkość na wykresie<select id="coupling-metric"><option value="current_a">Prąd (A)</option><option value="resistance_ohm">Rezystancja (Ω)</option></select></label><canvas id="coupling-chart" aria-label="Wykres wyniku modelu PV i akumulatora"></canvas><div class="scroll"><table><thead><tr><th>Czas (dni)</th><th>Prąd modelowany (A)</th><th>Rezystancja modelowana (Ω)</th></tr></thead><tbody id="coupling-results"></tbody></table></div>
+</div></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><p class="diagram-key" id="diagram-key"></p><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
@@ -268,7 +275,7 @@ function paintEnergyAnalysis(){
 }
 $('analysis-chart').onclick=()=>openChart(['pv_kwh','direct_kwh','charge_kwh','discharge_kwh','soc_kwh']);
 function openPage(page){
- if(page==='analysis')paintEnergyAnalysis();
+ if(page==='analysis'){paintEnergyAnalysis();requestAnimationFrame(drawCoupling);}
  if(page==="meter")requestAnimationFrame(paintComparison);
  if(page==='inventory')paintInventory();
  if(page==='sensor')paintSensor();
@@ -375,6 +382,54 @@ $('settings').onsubmit=async e=>{
 </script>
 <script src="/panels/meter-comparison.js"></script>
 <script>
+let couplingRows=[];
+function drawCoupling(){
+ const canvas=$('coupling-chart'), width=canvas.clientWidth;
+ if(!width)return;
+ const ratio=devicePixelRatio;
+ canvas.width=width*ratio;canvas.height=310*ratio;
+ const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);
+ if(!couplingRows.length)return;
+ const key=$('coupling-metric').value, values=couplingRows.map(r=>r[key]);
+ const min=Math.min(...values), max=Math.max(...values);
+ const first=couplingRows[0].day,last=couplingRows.at(-1).day;
+ const x=t=>74+(t-first)/(last-first)*Math.max(1,width-96);
+ const y=v=>max===min?145:262-(v-min)/(max-min)*220;
+ ctx.font='12px Segoe UI';ctx.fillStyle='#d2e5d6';
+ ctx.fillText(key==='current_a'?'A':'Ω',8,18);
+ for(let i=0;i<=(min===max?0:4);i++){
+  const v=min+(max-min)*i/4;
+  ctx.fillText(v.toPrecision(5),4,y(v)+4);
+  ctx.strokeStyle='#395447';ctx.beginPath();ctx.moveTo(74,y(v));ctx.lineTo(width-22,y(v));ctx.stroke();
+ }
+ ctx.fillText(first.toPrecision(4)+' dni',74,290);
+ ctx.fillText(last.toPrecision(4)+' dni',Math.max(74,width-90),290);
+ ctx.strokeStyle='#a9e294';ctx.lineWidth=2;ctx.beginPath();
+ couplingRows.forEach((r,i)=>i?ctx.lineTo(x(r.day),y(r[key])):ctx.moveTo(x(r.day),y(r[key])));ctx.stroke();
+}
+$('coupling-metric').onchange=drawCoupling;
+window.addEventListener('resize',drawCoupling);
+$('coupling').onsubmit=async event=>{
+ event.preventDefault();
+ $('coupling-results').replaceChildren();couplingRows=[];drawCoupling();
+ try{
+  const rows=event.target.querySelector('textarea').value.trim().split(/\r?\n/).filter(line=>line.trim()).map(line=>{
+   const fields=line.split(';').map(field=>field.trim());
+   if(fields.length!==3||fields.some(field=>!field))throw Error('Podaj trzy wartości w każdym wierszu.');
+   const [day,current_a,pv_deficit]=fields.map(field=>Number(field.replace(',','.')));
+   return {day,current_a,pv_deficit};
+  });
+  const response=await fetch('/pv-battery-analysis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rows})});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error);
+  couplingRows=data.rows;drawCoupling();
+  for(const row of data.rows){
+   const tr=$('coupling-results').insertRow();
+   for(const value of [row.day,row.current_a,row.resistance_ohm])tr.insertCell().textContent=value.toPrecision(6);
+  }
+  $('coupling-status').textContent='Przeliczono '+data.rows.length+' próbek.';
+ }catch(error){$('coupling-status').textContent=error.message;}
+};
 $('settings').requestSubmit();
 </script>
 </html>
