@@ -64,6 +64,7 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <form id="ask-form"><label>Pytanie o symulację<input id="question" required placeholder="Np. dlaczego pobieram prąd z sieci?"></label>
 <div class="actions"><button>Zapytaj</button></div></form>
 <div class="actions" id="assistant-topics">
+<button type="button" data-topic="sample">Ostatni pomiar licznika</button>
 <button type="button" data-topic="import">Pobór z sieci</button>
 <button type="button" data-topic="battery">Praca magazynu</button>
 <button type="button" data-topic="export">Oddawanie energii</button>
@@ -473,6 +474,18 @@ const assistantSeries={
  cost:['import_kwh','export_kwh']
 };
 function explain(topic){
+ if(topic==='sample'){
+  $('assistant-chart').hidden=true;
+  const meters=inventory.filter(item=>item.target==='wire-4-1'&&['Modbus TCP','demo'].includes(item.protocol));
+  const lines=meters.map(item=>{
+   const sample=latestSamples.get(item.id);
+   if(!sample)return item.name+': brak próbki.';
+   if(sample.error)return item.name+': ostatnia próba odczytu zakończyła się błędem.';
+   return item.name+': '+sampleLabel(item)+' · źródło: '+sample.source+'.';
+  });
+  $('assistant-answer').textContent=lines.join(' ')||'Brak czujnika przypisanego do przewodu falownik–licznik. Dodaj go w rejestrze.';
+  return;
+ }
  if(!result){$('assistant-answer').textContent='Najpierw przelicz profil.';return;}
  const r=result.rows[index],t=result.totals,b=result.battery;
  const energy=v=>format(v)+' kWh';
@@ -489,7 +502,7 @@ function explain(topic){
 $('ask-form').onsubmit=event=>{
  event.preventDefault();
  const q=$('question').value.toLowerCase();
- explain(/koszt|rachun|cen/.test(q)?'cost':/eksport|oddaw|ogranicz/.test(q)?'export':/pobier|pobór|z sieci/.test(q)?'import':/magazyn|akumulator|ładow/.test(q)?'battery':null);
+ explain(/ostatni|próbk|pomiar|odczyt/.test(q)&&/licznik|czujnik/.test(q)?'sample':/koszt|rachun|cen/.test(q)?'cost':/eksport|oddaw|ogranicz/.test(q)?'export':/pobier|pobór|z sieci/.test(q)?'import':/magazyn|akumulator|ładow/.test(q)?'battery':null);
 };
 $('assistant-topics').querySelectorAll('button').forEach(button=>button.onclick=()=>explain(button.dataset.topic));
 $('assistant-settings').onclick=()=>openPage('setup');
