@@ -4,12 +4,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TSI PV Studio</title>
 <style>
-:root{font:16px 'Segoe UI',sans-serif;color:#eaf3f0;background:#101b22;color-scheme:dark}
-*{box-sizing:border-box}body{margin:0}header,main{padding:24px clamp(16px,5vw,72px)}header{border-bottom:1px solid #34474c;display:flex;flex-wrap:wrap;gap:24px;align-items:center}nav{display:flex;gap:8px;flex-wrap:wrap}
-button,input,textarea{font:inherit;color:inherit;background:#21343c;border:1px solid #4a6268;border-radius:7px;padding:8px}button{cursor:pointer}button[aria-pressed=true]{background:#bce97c;color:#15241a}h1{margin:0 0 8px;font-size:clamp(26px,5vw,44px)}p{color:#b5c9ca}.card{background:#17282f;border:1px solid #34474c;border-radius:14px;padding:20px;margin:16px 0}
-.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}.flow-map{display:grid;gap:5px;margin-top:16px}.flow-map div{display:grid;grid-template-columns:minmax(90px,1fr) minmax(100px,2fr) minmax(90px,1fr);align-items:center;gap:8px;font-size:14px}.flow-map span:nth-child(2){text-align:center;border-bottom:2px solid #698287}.flow>div>button:first-child{width:100%}.flow .chart-link{display:inline-block;min-height:0;margin-top:5px;font-size:13px}.flow-map div{grid-template-columns:minmax(50px,1fr) minmax(80px,2fr) minmax(50px,1fr) auto auto}.flow-map button{font-size:12px;padding:5px}@media(max-width:550px){.flow-map div{grid-template-columns:repeat(3,minmax(0,1fr))}}.flow button{display:grid;gap:8px;text-align:left;min-height:80px}.flow strong{font-size:22px}.axis{display:flex;gap:12px;align-items:center;margin-top:20px}.axis input{flex:1;min-width:0;accent-color:#bce97c}canvas{width:100%;height:310px;display:block}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}td,th{text-align:right;padding:8px;border-bottom:1px solid #34474c;white-space:nowrap}td:first-child,th:first-child{text-align:left}.scroll{overflow:auto}.fields{display:flex;flex-wrap:wrap;gap:12px}label{display:grid;gap:5px}input[type=number]{width:135px}textarea{width:100%;min-height:140px}button:focus-visible,input:focus-visible{outline:2px solid #bce97c;outline-offset:3px}
+:root{font:16px 'Segoe UI',sans-serif;color:#edf5ef;background:#101e18;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0}header,main{padding:24px clamp(16px,5vw,72px)}header{border-bottom:1px solid #395447;display:flex;flex-wrap:wrap;gap:24px;align-items:center}nav{display:flex;gap:8px;flex-wrap:wrap}
+button,input,textarea{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;border-radius:7px;padding:8px}button{cursor:pointer}button[aria-pressed=true]{background:#a9e294;color:#15241a}h1{margin:0 0 8px;font-size:clamp(26px,5vw,44px)}p{color:#bacfc0}.card{background:#182c22;border:1px solid #395447;border-radius:14px;padding:20px;margin:16px 0}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}.flow-map{display:grid;gap:5px;margin-top:16px}.flow-map div{display:grid;grid-template-columns:minmax(90px,1fr) minmax(100px,2fr) minmax(90px,1fr);align-items:center;gap:8px;font-size:14px}.flow-map span:nth-child(2){text-align:center;border-bottom:2px solid #698287}.flow>div>button:first-child{width:100%}.flow .chart-link{display:inline-block;min-height:0;margin-top:5px;font-size:13px}.flow-map div{grid-template-columns:minmax(50px,1fr) minmax(80px,2fr) minmax(50px,1fr) auto auto}.flow-map button{font-size:12px;padding:5px}@media(max-width:550px){.flow-map div{grid-template-columns:repeat(3,minmax(0,1fr))}}.flow button{display:grid;gap:8px;text-align:left;min-height:80px}.flow strong{font-size:22px}.axis{display:flex;gap:12px;align-items:center;margin-top:20px}.axis input{flex:1;min-width:0;accent-color:#a9e294}canvas{width:100%;height:310px;display:block}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}td,th{text-align:right;padding:8px;border-bottom:1px solid #395447;white-space:nowrap}td:first-child,th:first-child{text-align:left}.scroll{overflow:auto}.fields{display:flex;flex-wrap:wrap;gap:12px}label{display:grid;gap:5px}input[type=number]{width:135px}textarea{width:100%;min-height:140px}button:focus-visible,input:focus-visible{outline:2px solid #a9e294;outline-offset:3px}
 
-#nodes{display:none}.schematic{display:grid;grid-template-columns:repeat(7,minmax(92px,1fr));grid-template-rows:auto 58px auto;align-items:center;min-width:700px;gap:0}.schematic .device{text-align:center;z-index:1}.device-main{display:grid;width:100%;justify-items:center;gap:6px;background:#21343c;padding:12px 4px}.device-main strong{font-size:14px}.device-main small{font-variant-numeric:tabular-nums}.symbol{font-size:32px;color:#bce97c}.wire{text-align:center;position:relative;min-width:0}.wire::before{content:"";position:absolute;top:50%;left:0;right:0;border-top:3px solid #5b7278}.wire.active::before{border-color:#bce97c}.wire button{position:relative;padding:3px 5px;font-size:12px}.wire .reading{display:block;margin:3px auto 0}.wire.vertical::before{top:0;bottom:0;left:50%;right:auto;border-top:0;border-left:3px solid #5b7278}.wire.vertical.active::before{border-color:#bce97c}.device .reading{font-size:12px;margin-top:4px}.diagram-scroll{overflow:auto;padding-bottom:8px}.schematic [data-flow=idle]{color:#a8b6bc}
+#nodes{display:none}.schematic{display:grid;grid-template-columns:repeat(7,minmax(92px,1fr));grid-template-rows:auto 58px auto;align-items:center;min-width:700px;gap:0}.schematic .device{text-align:center;z-index:1}.device-main{display:grid;width:100%;justify-items:center;gap:6px;background:#20392c;padding:12px 4px}.device-main strong{font-size:14px}.device-main small{font-variant-numeric:tabular-nums}.symbol{font-size:32px;color:#a9e294}.wire{text-align:center;position:relative;min-width:0}.wire::before{content:"";position:absolute;top:50%;left:0;right:0;border-top:3px solid #627d6e}.wire.active::before{border-color:#a9e294}.wire button{position:relative;padding:3px 5px;font-size:12px}.wire .reading{display:block;margin:3px auto 0}.wire.vertical::before{top:0;bottom:0;left:50%;right:auto;border-top:0;border-left:3px solid #627d6e}.wire.vertical.active::before{border-color:#a9e294}.device .reading{font-size:12px;margin-top:4px}.diagram-scroll{overflow:auto;padding-bottom:8px}.schematic [data-flow=idle]{color:#a8b6bc}
 header nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}header nav button{min-height:44px;white-space:nowrap}header>.fields{display:grid;grid-template-columns:1fr 1fr;gap:6px}header>.fields button{min-height:44px}.schematic{grid-template-rows:148px 82px 148px}.schematic .device{display:grid;grid-template-rows:104px 30px;align-self:stretch;align-content:center;gap:4px}.schematic .device-main{height:104px;grid-template-rows:35px 28px 16px;align-items:center;gap:2px;padding:6px 4px}.schematic .reading{height:28px;min-width:76px;margin:0 auto}.schematic .wire{display:grid;grid-template-rows:28px 28px;justify-items:center;gap:4px}.schematic .wire::before{top:14px}.schematic .wire.vertical{align-self:stretch;align-content:center}.schematic .wire.vertical::before{top:0}.schematic .wire button:first-child{min-width:85px}@media(max-width:760px){header nav{width:100%;grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}header nav button{white-space:normal}}
 
 #legend,#battery>.actions,#meter>.actions,#technical>.actions,#settings>.actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
@@ -22,6 +22,7 @@ header nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}head
 .schematic .device-main{height:auto;min-height:126px;grid-template-rows:minmax(2.5em,auto) 36px minmax(2.5em,auto);align-content:center;gap:4px;min-width:0;white-space:normal}
 .schematic .device-main strong,.schematic .device-main small{display:block;max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.2}
 .schematic .device-main .symbol{line-height:1}
+.schematic .wire.active[data-direction="import"]::before,.schematic .wire.active[data-direction="discharge"]::before{border-color:#d5b67a}.schematic .wire.active[data-direction="import"] button:first-child,.schematic .wire.active[data-direction="discharge"] button:first-child{color:#f0d6a3}
 </style>
 <header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
 <button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
@@ -46,10 +47,10 @@ header nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}head
 <script>
 const $ = id => document.getElementById(id);
 const metrics = [
- ['direct_kwh','PV bezpośrednio do domu','#f0e696'],['pv_kwh','Produkcja PV','#e9bd62'],['load_kwh','Zużycie domu','#8bcde7'],
- ['soc_kwh','Energia w magazynie','#bce97c'],['import_kwh','Pobór z sieci','#f29590'],
- ['export_kwh','Oddanie do sieci','#d9adf2'],['charge_kwh','Ładowanie','#63c9aa'],
- ['discharge_kwh','Rozładowanie','#e7a973'],['curtailed_kwh','Ograniczona produkcja','#a8b6bc']
+ ['direct_kwh','PV bezpośrednio do domu','#8dcb88'],['pv_kwh','Produkcja PV','#d2e5a6'],['load_kwh','Zużycie domu','#78bda0'],
+ ['soc_kwh','Energia w magazynie','#a9e294'],['import_kwh','Pobór z sieci','#d5b67a'],
+ ['export_kwh','Oddanie do sieci','#b0ccab'],['charge_kwh','Ładowanie','#63c9aa'],
+ ['discharge_kwh','Rozładowanie','#d5b67a'],['curtailed_kwh','Ograniczona produkcja','#a8b6bc']
 ];
 const equipment={
  pv_kwh:['Panele fotowoltaiczne',['pv_kwh','curtailed_kwh']],
@@ -85,8 +86,8 @@ function draw(){
  const keys=metrics.filter(([key])=>selectedSeries.has(key));
  const max=Math.max(1,...keys.map(([key])=>result.rows.reduce((m,r)=>Math.max(m,r[key]),0)));
  const x=i=>58+i*(width-76)/Math.max(1,result.rows.length-1), y=v=>272-v*242/max;
- ctx.font='12px Segoe UI';ctx.fillStyle='#b5c9ca';ctx.fillText('kWh',10,16);
- for(let i=0;i<=5;i++){const v=max*i/5;ctx.strokeStyle='#34474c';ctx.beginPath();ctx.moveTo(58,y(v));ctx.lineTo(width-18,y(v));ctx.stroke();ctx.fillText(format(v),4,y(v)+4);}
+ ctx.font='12px Segoe UI';ctx.fillStyle='#bacfc0';ctx.fillText('kWh',10,16);
+ for(let i=0;i<=5;i++){const v=max*i/5;ctx.strokeStyle='#395447';ctx.beginPath();ctx.moveTo(58,y(v));ctx.lineTo(width-18,y(v));ctx.stroke();ctx.fillText(format(v),4,y(v)+4);}
  const interval=Math.max(1,Math.ceil(result.rows.length/Math.max(2,Math.floor(width/85))));
  for(let i=0;i<result.rows.length;i+=interval)ctx.fillText(labelHour(i),x(i)-14,296);
  ctx.strokeStyle='#88999a';ctx.beginPath();ctx.moveTo(x(index),26);ctx.lineTo(x(index),272);ctx.stroke();
@@ -117,6 +118,7 @@ function showHour(){
  const energy=v=>format(v)+' kWh';
  function wire(col,row,label,value,arrow,keys,vertical=false){
   const group=document.createElement('div'),b=document.createElement('button');
+  group.dataset.direction=arrow==='←'?'import':arrow==='↑'?'discharge':'forward';
   group.className='wire'+(vertical?' vertical':'')+(value>0?' active':'');
   b.textContent=(value>0?arrow:'—')+' '+energy(value);
   b.dataset.flow=value>0?'active':'idle';
