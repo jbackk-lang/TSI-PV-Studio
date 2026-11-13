@@ -23,6 +23,18 @@ header nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}head
 .schematic .device-main strong,.schematic .device-main small{display:block;max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.2}
 .schematic .device-main .symbol{line-height:1}
 .schematic .wire.active[data-direction="import"]::before,.schematic .wire.active[data-direction="discharge"]::before{border-color:#d5b67a}.schematic .wire.active[data-direction="import"] button:first-child,.schematic .wire.active[data-direction="discharge"] button:first-child{color:#f0d6a3}
+
+header{background:#14271e}
+h1{color:#edf6ee}
+.card{box-shadow:0 12px 28px #080f0b38}
+.device-main{background:#233d2e}
+.device-main small,#clock{color:#d2e5d6}
+#clock{font-variant-numeric:tabular-nums;min-width:5ch}
+#detail,#point{color:#d7e8dc}
+#totals{border-left:3px solid #83bca1}
+#legend button[aria-pressed="true"]{background:#294737;color:#f1f8f2}
+#legend button[aria-pressed="false"]{background:#182c22;color:#bacfc0}
+#legend button::before{content:"";display:inline-block;width:.65em;height:.65em;margin-right:.45em;border-radius:50%;background:var(--series-color)}
 </style>
 <header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
 <button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
@@ -47,10 +59,10 @@ header nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}head
 <script>
 const $ = id => document.getElementById(id);
 const metrics = [
- ['direct_kwh','PV bezpośrednio do domu','#8dcb88'],['pv_kwh','Produkcja PV','#d2e5a6'],['load_kwh','Zużycie domu','#78bda0'],
- ['soc_kwh','Energia w magazynie','#a9e294'],['import_kwh','Pobór z sieci','#d5b67a'],
+ ['direct_kwh','PV bezpośrednio do domu','#8dcb88'],['pv_kwh','Produkcja PV','#e9ca81'],['load_kwh','Zużycie domu','#8cc7d7'],
+ ['soc_kwh','Energia w magazynie','#a9e294'],['import_kwh','Pobór z sieci','#e1a782'],
  ['export_kwh','Oddanie do sieci','#b0ccab'],['charge_kwh','Ładowanie','#63c9aa'],
- ['discharge_kwh','Rozładowanie','#d5b67a'],['curtailed_kwh','Ograniczona produkcja','#a8b6bc']
+ ['discharge_kwh','Rozładowanie','#c6b3dc'],['curtailed_kwh','Ograniczona produkcja','#a8b6bc']
 ];
 const equipment={
  pv_kwh:['Panele fotowoltaiczne',['pv_kwh','curtailed_kwh']],
@@ -158,7 +170,7 @@ function render(){
  showHour();
 }
 for(const [key,label,color] of metrics){
- const b=document.createElement('button');b.textContent=label;b.dataset.metric=key;b.style.borderColor=color;b.setAttribute('aria-pressed',selectedSeries.has(key));
+ const b=document.createElement('button');b.textContent=label;b.dataset.metric=key;b.style.setProperty('--series-color',color);b.setAttribute('aria-pressed',selectedSeries.has(key));
  b.onclick=()=>{if(selectedSeries.has(key))selectedSeries.delete(key);else selectedSeries.add(key);b.setAttribute('aria-pressed',selectedSeries.has(key));draw();};$('legend').append(b);
 }
 function openPage(page){
