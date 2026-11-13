@@ -16,6 +16,12 @@ header nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}head
 #legend{margin-bottom:14px}
 #legend button,.actions button{min-height:44px;width:100%;margin:0;text-align:center;line-height:1.2}
 @media(max-width:900px){#legend,#battery>.actions,#meter>.actions,#technical>.actions,#settings>.actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.schematic{grid-template-rows:auto 82px auto}
+.schematic .device{grid-template-rows:1fr 30px;min-width:0;align-content:stretch}
+.schematic .device-main{height:auto;min-height:126px;grid-template-rows:minmax(2.5em,auto) 36px minmax(2.5em,auto);align-content:center;gap:4px;min-width:0;white-space:normal}
+.schematic .device-main strong,.schematic .device-main small{display:block;max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.2}
+.schematic .device-main .symbol{line-height:1}
 </style>
 <header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
 <button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
@@ -105,7 +111,7 @@ function showHour(){
   group.className='device';b.className='device-main';
   const symbol=document.createElement('span'),name=document.createElement('strong'),reading=document.createElement('small');
   symbol.className='symbol';symbol.textContent=icon;symbol.setAttribute('aria-hidden','true');
-  name.textContent=label;reading.textContent=value;b.append(symbol,name,reading);
+  name.textContent=label;reading.textContent=value;b.append(name,symbol,reading);
   b.onclick=action;group.append(b);sensor(group,label,keys);place(group,col,row);
  }
  const energy=v=>format(v)+' kWh';
