@@ -56,7 +56,12 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <button data-page="battery">Magazyn</button><button data-page="meter">Licznik</button><button data-page="assistant">Asystent TSI</button><button data-page="inventory">Urządzenia i czujniki</button></nav><div class="fields"><button id="language">PL / EN</button><button id="power" aria-pressed="true">Symulacja włączona</button></div></header>
 <main><section id="technical" hidden><h1 id="tech-title"></h1><div class="card" id="tech-data"></div><div class="actions"><button id="tech-back">Wróć do diagramu</button></div></section>
 <section id="battery" hidden><h1>Magazyn energii</h1><div class="card" id="battery-data"></div><div class="actions"><button id="battery-chart">Wykres magazynu</button></div></section>
-<section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><div class="actions"><button id="meter-chart">Wykres licznika</button></div></section>
+<section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><div class="actions"><button id="meter-chart">Wykres licznika</button></div><div class="card"><h2>Pomiar a symulacja</h2>
+<div class="fields"><label>Początek profilu<input id="comparison-start" type="datetime-local" step="3600"></label>
+<label>Źródło pomiaru<select id="comparison-meter"></select></label></div>
+<p id="comparison-note"></p><canvas id="comparison-chart" aria-label="Porównanie poboru w kWh"></canvas>
+<div class="scroll"><table><thead><tr><th>Godzina</th><th>Symulacja (kWh)</th><th>Pomiar (kWh)</th><th>Różnica (kWh)</th><th>Minuty danych</th></tr></thead><tbody id="comparison-table"></tbody></table></div>
+</div></section>
 <section id="assistant" hidden>
 <h1>Asystent TSI</h1>
 <p>Pomoc w analizie wyników i ustawianiu symulacji.</p>
@@ -64,7 +69,7 @@ select{font:inherit;color:inherit;background:#20392c;border:1px solid #536e5f;bo
 <form id="ask-form"><label>Pytanie o symulację<input id="question" required placeholder="Np. dlaczego pobieram prąd z sieci?"></label>
 <div class="actions"><button>Zapytaj</button></div></form>
 <div class="actions" id="assistant-topics">
-<button type="button" data-topic="sample">Ostatni pomiar licznika</button>
+<button type="button" data-topic="comparison">Pomiar a symulacja</button><button type="button" data-topic="sample">Ostatni pomiar licznika</button>
 <button type="button" data-topic="import">Pobór z sieci</button>
 <button type="button" data-topic="battery">Praca magazynu</button>
 <button type="button" data-topic="export">Oddawanie energii</button>
@@ -249,6 +254,7 @@ for(const [key,label,color] of metrics){
  b.onclick=()=>{if(!selectedSeries.has(key)&&[...selectedSeries].some(k=>meterWireSeries.includes(k)!==meterWireSeries.includes(key))){openChart([key]);return;}if(selectedSeries.has(key))selectedSeries.delete(key);else selectedSeries.add(key);b.setAttribute('aria-pressed',selectedSeries.has(key));draw();};$('legend').append(b);
 }
 function openPage(page){
+ if(page==="meter")requestAnimationFrame(paintComparison);
  if(page==='inventory')paintInventory();
  if(page==='sensor')paintSensor();
  if(result){
@@ -512,6 +518,13 @@ const assistantSeries={
  cost:['import_kwh','export_kwh']
 };
 function explain(topic){
+ if(topic==='comparison'){
+  $('assistant-chart').hidden=true;
+  const rows=comparisonRows().filter(r=>r.measured!==null&&r.measured>r.predicted);
+  const peak=rows.reduce((best,r)=>!best||r.measured-r.predicted>best.measured-best.predicted?r:best,null);
+  $('assistant-answer').textContent=peak?comparisonTime(peak.time)+': pomiar '+format(peak.measured)+' kWh, symulacja '+format(peak.predicted)+' kWh. Pobór był większy o '+format(peak.measured-peak.predicted)+' kWh.':'Brak pełnej godziny z pomiarem większym od symulacji.';
+  return;
+ }
  if(topic==='sample'){
   $('assistant-chart').hidden=true;
   const meters=inventory.filter(item=>item.target==='wire-4-1'&&['Modbus TCP','demo'].includes(item.protocol));
@@ -540,7 +553,7 @@ function explain(topic){
 $('ask-form').onsubmit=event=>{
  event.preventDefault();
  const q=$('question').value.toLowerCase();
- explain(/ostatni|próbk|pomiar|odczyt/.test(q)&&/licznik|czujnik/.test(q)?'sample':/koszt|rachun|cen/.test(q)?'cost':/eksport|oddaw|ogranicz/.test(q)?'export':/pobier|pobór|z sieci/.test(q)?'import':/magazyn|akumulator|ładow/.test(q)?'battery':null);
+ explain(/prognoz|porówn|symulac/.test(q)&&/pomiar|pob[oó]|licznik/.test(q)?'comparison':/ostatni|próbk|pomiar|odczyt/.test(q)&&/licznik|czujnik/.test(q)?'sample':/koszt|rachun|cen/.test(q)?'cost':/eksport|oddaw|ogranicz/.test(q)?'export':/pobier|pobór|z sieci/.test(q)?'import':/magazyn|akumulator|ładow/.test(q)?'battery':null);
 };
 $('assistant-topics').querySelectorAll('button').forEach(button=>button.onclick=()=>explain(button.dataset.topic));
 $('assistant-settings').onclick=()=>openPage('setup');
@@ -567,6 +580,66 @@ $('settings').onsubmit=async e=>{
  $('status').textContent='Przeliczono '+profile.length+' godzin.';render();
  }catch(error){diagramError=true;$('status').textContent=error.message;if(result)showHour();}
 };
+const comparisonStart=$('comparison-start'), comparisonMeter=$('comparison-meter');
+const day=new Date();day.setHours(0,0,0,0);
+comparisonStart.value=new Date(day.getTime()-day.getTimezoneOffset()*60000).toISOString().slice(0,16);
+function comparisonTime(t){return new Date(t).toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
+function comparisonRows(){
+ const start=new Date(comparisonStart.value).getTime();
+ if(!result||!Number.isFinite(start))return [];
+ const selected=comparisonMeter.value||'comparison-demo';
+ const samples=history.filter(s=>s.id===selected&&s.source==='Modbus TCP'&&['W','kW'].includes(s.unit)).sort((a,b)=>a.time-b.time);
+ return result.rows.map((r,i)=>{
+  const time=start+i*3600000;
+  if(selected==='comparison-demo'){
+   const missing=i%24===11||i%24===12;
+   return {time,predicted:r.import_kwh,measured:missing?null:r.import_kwh+(i%24===18?.35:0),coverage:missing?0:60};
+  }
+  let coverage=0,energy=0;
+  for(let j=1;j<samples.length;j++){
+   const a=samples[j-1],b=samples[j],gap=b.time-a.time;
+   if(gap<=0||gap>300000||a.unit!==b.unit)continue;
+   const from=Math.max(time,a.time),to=Math.min(time+3600000,b.time);
+   if(to<=from)continue;
+   coverage+=to-from;
+   energy+=Math.max(0,-a.value)/(a.unit==='W'?1000:1)*(to-from)/3600000;
+  }
+  return {time,predicted:r.import_kwh,measured:coverage===3600000?energy:null,coverage:coverage/60000};
+ });
+}
+function paintComparison(){
+ const selected=comparisonMeter.value;
+ const meters=inventory.filter(item=>item.target==='wire-4-1'&&item.protocol==='Modbus TCP');
+ comparisonMeter.replaceChildren(new Option('Dane demonstracyjne','comparison-demo'),...meters.map(item=>new Option(item.name,item.id)));
+ if([...comparisonMeter.options].some(option=>option.value===selected))comparisonMeter.value=selected;
+ $('comparison-note').textContent=comparisonMeter.value==='comparison-demo'?'Demo: pomiar przykładowy z luką o 11:00 i 12:00 przy profilu od północy.':'Pobór oznacza ujemną moc w W lub kW. Luki powyżej pięciu minut pozostają bez oszacowania.';
+ const rows=comparisonRows();
+ $('comparison-table').replaceChildren(...rows.map(r=>{
+  const row=document.createElement('tr');
+  for(const v of [comparisonTime(r.time),format(r.predicted),r.measured===null?'Brak pełnych danych':format(r.measured),r.measured===null?'—':format(r.measured-r.predicted),format(r.coverage)])row.insertCell().textContent=v;
+  return row;
+ }));
+ const canvas=$('comparison-chart'),width=canvas.clientWidth,ratio=devicePixelRatio;
+ if(!width||!rows.length)return;
+ canvas.width=width*ratio;canvas.height=310*ratio;
+ const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);ctx.font='12px Segoe UI';
+ const max=rows.reduce((m,r)=>Math.max(m,r.predicted,r.measured??0),1);
+ const x=i=>50+i*(width-75)/Math.max(1,rows.length-1),y=v=>258-v*225/max;
+ ctx.fillStyle='#d2e5d6';ctx.fillText('kWh',5,16);
+ for(let i=0;i<=4;i++){const v=max*i/4;ctx.fillText(format(v),4,y(v));ctx.strokeStyle='#395447';ctx.beginPath();ctx.moveTo(50,y(v));ctx.lineTo(width-25,y(v));ctx.stroke();}
+ for(const [key,color,label,legendX] of [['predicted','#a9e294','Symulacja',50],['measured','#8cc7d7','Pomiar',135]]){
+  ctx.strokeStyle=color;ctx.fillStyle=color;ctx.fillText(label,legendX,17);ctx.lineWidth=2;
+  ctx.beginPath();let connected=false;
+  rows.forEach((r,i)=>{if(r[key]===null){connected=false;return;}if(connected)ctx.lineTo(x(i),y(r[key]));else ctx.moveTo(x(i),y(r[key]));connected=true;});ctx.stroke();
+  rows.forEach((r,i)=>{if(r[key]!==null){ctx.beginPath();ctx.arc(x(i),y(r[key]),2.5,0,2*Math.PI);ctx.fill();}});
+ }
+ ctx.fillStyle='#d2e5d6';
+ const step=Math.max(1,Math.ceil(rows.length/Math.max(1,Math.floor(width/115))));
+ rows.forEach((r,i)=>{if(i%step===0)ctx.fillText(comparisonTime(r.time),Math.min(x(i),width-100),287);});
+}
+comparisonStart.onchange=paintComparison;
+comparisonMeter.onchange=paintComparison;
+window.addEventListener('resize',()=>{if(!$('meter').hidden)paintComparison();});
 $('settings').requestSubmit();
 </script>
 </html>
