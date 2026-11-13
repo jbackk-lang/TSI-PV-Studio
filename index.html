@@ -11,8 +11,10 @@ button,input,textarea{font:inherit;color:inherit;background:#21343c;border:1px s
 </style>
 <header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
 <button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
-</nav></header>
+<button data-page="battery">Magazyn</button><button data-page="meter">Licznik</button></nav><div class="fields"><button id="language">PL / EN</button><button id="power" aria-pressed="true">Symulacja włączona</button></div></header>
 <main><section id="technical" hidden><h1 id="tech-title"></h1><div class="card" id="tech-data"></div><button id="tech-back">Wróć do diagramu</button></section>
+<section id="battery" hidden><h1>Magazyn energii</h1><div class="card" id="battery-data"></div><button id="battery-chart">Wykres magazynu</button></section>
+<section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><button id="meter-chart">Wykres licznika</button></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
 <div class="card"><div class="flow" id="nodes"></div><div class="flow-map" id="links" aria-label="Kierunki przepływu energii"></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
@@ -55,7 +57,7 @@ function openTechnical(title,values){
 }
 const number = new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:3});
 const format = value => number.format(value);
-let result, selected='pv_kwh', index=12;
+let enabled=true, english=false, result, selected='pv_kwh', index=12;
 const selectedSeries = new Set(metrics.slice(1,6).map(m=>m[0]));
 const demo=Array.from({length:24},(_,h)=>[Math.max(0, 3.5*Math.sin((h-6)*Math.PI/13)).toFixed(3), h>=17&&h<22?1.6:0.45,1.1,0.35].join(';')).join('\n');
 $('csv').value=demo;
@@ -79,13 +81,14 @@ function draw(){
 }
 function showHour(){
  const r=result.rows[index];$('hour').value=index;$('clock').value=labelHour(index);
- const cards=[['pv_kwh','☀ Produkcja PV'],['load_kwh','→ Zużycie domu'],['soc_kwh','↔ Magazyn'],['import_kwh','↔ Sieć']];
+ const cards=[['pv_kwh','☀ Produkcja PV'],['load_kwh','→ Zużycie domu'],['soc_kwh','↔ Magazyn'],['import_kwh','↔ Licznik']];
  $('nodes').replaceChildren(...cards.map(([key,label])=>{
   const button=document.createElement('button'), value=document.createElement('strong');
   button.textContent=label;value.textContent=format(r[key])+' kWh';button.append(value);
   button.setAttribute('aria-pressed',key===selected);
   const [title,keys]=equipment[key];
   button.onclick=()=>{
+   if(key==='soc_kwh'||key==='import_kwh'){openPage(key==='soc_kwh'?'battery':'meter');return;}
    const b=result.battery;
    const values={
     pv_kwh:['Produkcja w wybranej godzinie: '+format(r.pv_kwh)+' kWh','Model modułu, moc znamionowa i parametry elektryczne: nie podano.'],
@@ -96,7 +99,7 @@ function showHour(){
    openTechnical(title,values[key]);
   };
   const group=document.createElement('div'), chartButton=document.createElement('button');
-  chartButton.className='chart-link';chartButton.textContent='↗ Wykres';
+  chartButton.className='chart-link';chartButton.textContent=english?'◉ Sensor':'◉ Czujnik';
   chartButton.setAttribute('aria-label','Wykres: '+title);
   chartButton.onclick=()=>openChart(keys);group.append(button,chartButton);return group;
  }));
@@ -117,7 +120,7 @@ function showHour(){
    'Długość, przekrój, materiał i sposób ułożenia: nie podano.',
    'Obciążalność i spadek napięcia wymagają danych przewodu.'
   ]);
-  graph.textContent='↗ Wykres';graph.setAttribute('aria-label','Wykres przepływu: '+from+' do '+to);
+  graph.textContent=english?'◉ Sensor':'◉ Czujnik';graph.setAttribute('aria-label','Wykres przepływu: '+from+' do '+to);
   graph.onclick=()=>openChart([from==='PV'&&to==='Dom'?'direct_kwh':from==='PV'&&to==='Magazyn'?'charge_kwh':from==='Magazyn'?'discharge_kwh':from==='Sieć'?'import_kwh':'export_kwh']);
   line.append(cable,graph);return line;
  }));
@@ -141,16 +144,38 @@ for(const [key,label,color] of metrics){
  b.onclick=()=>{if(selectedSeries.has(key))selectedSeries.delete(key);else selectedSeries.add(key);b.setAttribute('aria-pressed',selectedSeries.has(key));draw();};$('legend').append(b);
 }
 function openPage(page){
+ if(result){
+  const b=result.battery,t=result.totals;
+  $('battery-data').textContent=(english?'Capacity ':'Pojemność ')+format(b.capacity_kwh)+' kWh · '+(english?'Power ':'Moc ')+format(b.power_kw)+' kW · '+(english?'Reserve ':'Rezerwa ')+format(b.reserve_kwh)+' kWh';
+  $('meter-data').textContent=(english?'Import ':'Pobór ')+format(t.import_kwh)+' kWh · '+(english?'Export ':'Oddanie ')+format(t.export_kwh)+' kWh · '+(english?'Net energy cost ':'Koszt energii netto ')+format(t.cost)+' zł';
+ }
  document.querySelectorAll('main>section').forEach(s=>s.hidden=s.id!==page);
  document.querySelectorAll('[data-page]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.page===page));draw();
 }
 document.querySelectorAll('[data-page]').forEach(button=>button.onclick=()=>openPage(button.dataset.page));
+$('battery-chart').onclick=()=>openChart(equipment.soc_kwh[1]);
+$('meter-chart').onclick=()=>openChart(equipment.import_kwh[1]);
+function paintPower(){
+ $('power').setAttribute('aria-pressed',enabled);
+ $('power').textContent=enabled?(english?'Simulation on':'Symulacja włączona'):(english?'Simulation off':'Symulacja wyłączona');
+ $('hour').disabled=!enabled;
+}
+$('power').onclick=()=>{enabled=!enabled;paintPower();};
+$('language').onclick=()=>{
+ english=!english;document.documentElement.lang=english?'en':'pl';
+ const pages=[['Przegląd','Overview'],['Wykresy i pomiary','Charts and readings'],['Dane i sterowanie','Data and control'],['Magazyn','Battery'],['Licznik','Meter']];
+ document.querySelectorAll('[data-page]').forEach((b,i)=>b.textContent=pages[i][+english]);
+ for(const [id,pl,en] of [['battery','Magazyn energii','Battery storage'],['meter','Kalkulator licznika','Meter calculator'],['start','Przepływ energii','Energy flow'],['charts','Wykresy i pomiary','Charts and readings'],['setup','Dane i sterowanie','Data and control']]) $(id).querySelector('h1').textContent=english?en:pl;
+ paintPower();
+ if(result){showHour();openPage(document.querySelector('main>section:not([hidden])').id);}
+};
 $('tech-back').onclick=()=>openPage('start');
 $('hour').oninput=e=>{index=Number(e.target.value);showHour();};
-$('chart').onpointermove=e=>{if(!result)return;index=Math.max(0,Math.min(result.rows.length-1,Math.round((e.offsetX-58)*(result.rows.length-1)/Math.max(1,$('chart').clientWidth-76))));showHour();};
+$('chart').onpointermove=e=>{if(!result||!enabled)return;index=Math.max(0,Math.min(result.rows.length-1,Math.round((e.offsetX-58)*(result.rows.length-1)/Math.max(1,$('chart').clientWidth-76))));showHour();};
 window.addEventListener('resize',draw);
 $('settings').onsubmit=async e=>{
  e.preventDefault();
+ if(!enabled){$('status').textContent=english?'Turn on the simulation to recalculate.':'Włącz symulację, aby przeliczyć.';return;}
  try{
  const form=new FormData(e.target);
  const battery=Object.fromEntries(['capacity_kwh','power_kw','efficiency','reserve_kwh'].map(k=>[k,Number(form.get(k))]));battery.efficiency/=100;
