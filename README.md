@@ -2,6 +2,12 @@
 
 Samodzielna aplikacja do analizy fotowoltaiki, magazynu energii i wymiany z siecią. Pierwszy moduł liczy godzinowy bilans oraz koszt zmienny energii według podanych cen.
 
+## Uruchomienie aplikacji
+
+Uruchom `python server.py` i otwórz `http://127.0.0.1:8767/`. Aplikacja startuje z 24 godzinami oznaczonych danych demonstracyjnych. W panelu **Dane i sterowanie** możesz wkleić własny profil godzinowy CSV i zmienić parametry magazynu lub limit oddawania energii.
+
+Ekran **Przegląd** pokazuje kierunki przepływu energii dla wybranej godziny. Panel **Wykresy i pomiary** umożliwia włączanie serii, odczyt punktu i sprawdzenie wartości godzinowych w tabeli. Wykresy opisano w kWh, parametry mocy w kW, a koszt zmienny w zł. 
+
 ## Panele
 
 | Panel | Dane wejściowe | Dane do prezentacji | Stan |
