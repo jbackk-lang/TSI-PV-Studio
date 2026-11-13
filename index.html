@@ -8,6 +8,9 @@
 *{box-sizing:border-box}body{margin:0}header,main{padding:24px clamp(16px,5vw,72px)}header{border-bottom:1px solid #34474c;display:flex;flex-wrap:wrap;gap:24px;align-items:center}nav{display:flex;gap:8px;flex-wrap:wrap}
 button,input,textarea{font:inherit;color:inherit;background:#21343c;border:1px solid #4a6268;border-radius:7px;padding:8px}button{cursor:pointer}button[aria-pressed=true]{background:#bce97c;color:#15241a}h1{margin:0 0 8px;font-size:clamp(26px,5vw,44px)}p{color:#b5c9ca}.card{background:#17282f;border:1px solid #34474c;border-radius:14px;padding:20px;margin:16px 0}
 .flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}.flow-map{display:grid;gap:5px;margin-top:16px}.flow-map div{display:grid;grid-template-columns:minmax(90px,1fr) minmax(100px,2fr) minmax(90px,1fr);align-items:center;gap:8px;font-size:14px}.flow-map span:nth-child(2){text-align:center;border-bottom:2px solid #698287}.flow>div>button:first-child{width:100%}.flow .chart-link{display:inline-block;min-height:0;margin-top:5px;font-size:13px}.flow-map div{grid-template-columns:minmax(50px,1fr) minmax(80px,2fr) minmax(50px,1fr) auto auto}.flow-map button{font-size:12px;padding:5px}@media(max-width:550px){.flow-map div{grid-template-columns:repeat(3,minmax(0,1fr))}}.flow button{display:grid;gap:8px;text-align:left;min-height:80px}.flow strong{font-size:22px}.axis{display:flex;gap:12px;align-items:center;margin-top:20px}.axis input{flex:1;min-width:0;accent-color:#bce97c}canvas{width:100%;height:310px;display:block}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}td,th{text-align:right;padding:8px;border-bottom:1px solid #34474c;white-space:nowrap}td:first-child,th:first-child{text-align:left}.scroll{overflow:auto}.fields{display:flex;flex-wrap:wrap;gap:12px}label{display:grid;gap:5px}input[type=number]{width:135px}textarea{width:100%;min-height:140px}button:focus-visible,input:focus-visible{outline:2px solid #bce97c;outline-offset:3px}
+
+#nodes{display:none}.schematic{display:grid;grid-template-columns:repeat(7,minmax(92px,1fr));grid-template-rows:auto 58px auto;align-items:center;min-width:700px;gap:0}.schematic .device{text-align:center;z-index:1}.device-main{display:grid;width:100%;justify-items:center;gap:6px;background:#21343c;padding:12px 4px}.device-main strong{font-size:14px}.device-main small{font-variant-numeric:tabular-nums}.symbol{font-size:32px;color:#bce97c}.wire{text-align:center;position:relative;min-width:0}.wire::before{content:"";position:absolute;top:50%;left:0;right:0;border-top:3px solid #5b7278}.wire.active::before{border-color:#bce97c}.wire button{position:relative;padding:3px 5px;font-size:12px}.wire .reading{display:block;margin:3px auto 0}.wire.vertical::before{top:0;bottom:0;left:50%;right:auto;border-top:0;border-left:3px solid #5b7278}.wire.vertical.active::before{border-color:#bce97c}.device .reading{font-size:12px;margin-top:4px}.diagram-scroll{overflow:auto;padding-bottom:8px}.schematic [data-flow=idle]{color:#a8b6bc}
+header nav{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}header nav button{min-height:44px;white-space:nowrap}header>.fields{display:grid;grid-template-columns:1fr 1fr;gap:6px}header>.fields button{min-height:44px}.schematic{grid-template-rows:148px 82px 148px}.schematic .device{display:grid;grid-template-rows:104px 30px;align-self:stretch;align-content:center;gap:4px}.schematic .device-main{height:104px;grid-template-rows:35px 28px 16px;align-items:center;gap:2px;padding:6px 4px}.schematic .reading{height:28px;min-width:76px;margin:0 auto}.schematic .wire{display:grid;grid-template-rows:28px 28px;justify-items:center;gap:4px}.schematic .wire::before{top:14px}.schematic .wire.vertical{align-self:stretch;align-content:center}.schematic .wire.vertical::before{top:0}.schematic .wire button:first-child{min-width:85px}@media(max-width:760px){header nav{width:100%;grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}header nav button{white-space:normal}}
 </style>
 <header><strong>TSI / PV Studio</strong><nav aria-label="Panele">
 <button data-page="start" aria-pressed="true">Przegląd</button><button data-page="charts" aria-pressed="false">Wykresy i pomiary</button><button data-page="setup" aria-pressed="false">Dane i sterowanie</button>
@@ -16,7 +19,7 @@ button,input,textarea{font:inherit;color:inherit;background:#21343c;border:1px s
 <section id="battery" hidden><h1>Magazyn energii</h1><div class="card" id="battery-data"></div><button id="battery-chart">Wykres magazynu</button></section>
 <section id="meter" hidden><h1>Kalkulator licznika</h1><div class="card" id="meter-data"></div><button id="meter-chart">Wykres licznika</button></section>
 <section id="start"><h1>Przepływ energii</h1><p id="source">Profil demonstracyjny · dane przykładowe · przedziały godzinowe</p>
-<div class="card"><div class="flow" id="nodes"></div><div class="flow-map" id="links" aria-label="Kierunki przepływu energii"></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
+<div class="card"><div class="flow" id="nodes"></div><div class="diagram-scroll"><div class="schematic" id="links" aria-label="Schemat przepływu energii"></div></div><label class="axis">Godzina <input id="hour" type="range" min="0" value="12" aria-label="Godzina pomiaru"><output id="clock"></output></label><p id="detail" aria-live="polite"></p></div>
 <div class="card" id="totals"></div></section>
 <section id="charts" hidden><h1>Wykresy i pomiary</h1><div class="card"><div class="fields" id="legend"></div><canvas id="chart" aria-label="Wykres godzinowy energii w kWh"></canvas><p id="point"></p></div><div class="card scroll"><table id="table"></table></div></section>
 <section id="setup" hidden><h1>Dane i sterowanie</h1><div class="card"><form id="settings"><div class="fields">
@@ -81,49 +84,51 @@ function draw(){
 }
 function showHour(){
  const r=result.rows[index];$('hour').value=index;$('clock').value=labelHour(index);
- const cards=[['pv_kwh','☀ Produkcja PV'],['load_kwh','→ Zużycie domu'],['soc_kwh','↔ Magazyn'],['import_kwh','↔ Licznik']];
- $('nodes').replaceChildren(...cards.map(([key,label])=>{
-  const button=document.createElement('button'), value=document.createElement('strong');
-  button.textContent=label;value.textContent=format(r[key])+' kWh';button.append(value);
-  button.setAttribute('aria-pressed',key===selected);
-  const [title,keys]=equipment[key];
-  button.onclick=()=>{
-   if(key==='soc_kwh'||key==='import_kwh'){openPage(key==='soc_kwh'?'battery':'meter');return;}
-   const b=result.battery;
-   const values={
-    pv_kwh:['Produkcja w wybranej godzinie: '+format(r.pv_kwh)+' kWh','Model modułu, moc znamionowa i parametry elektryczne: nie podano.'],
-    load_kwh:['Zużycie w wybranej godzinie: '+format(r.load_kwh)+' kWh','Lista urządzeń i ich moce: nie podano.'],
-    soc_kwh:['Pojemność: '+format(b.capacity_kwh)+' kWh','Moc: '+format(b.power_kw)+' kW','Sprawność jednego etapu: '+format(b.efficiency*100)+'%','Rezerwa: '+format(b.reserve_kwh)+' kWh'],
-    import_kwh:['Limit oddawania: '+(result.export_limit_kw==null?'bez limitu w symulacji':format(result.export_limit_kw)+' kW'),'Napięcie i liczba faz: nie podano.']
-   };
-   openTechnical(title,values[key]);
-  };
-  const group=document.createElement('div'), chartButton=document.createElement('button');
-  chartButton.className='chart-link';chartButton.textContent=english?'◉ Sensor':'◉ Czujnik';
-  chartButton.setAttribute('aria-label','Wykres: '+title);
-  chartButton.onclick=()=>openChart(keys);group.append(button,chartButton);return group;
- }));
- const links=[
- ['PV','Dom',Math.min(r.pv_kwh,r.load_kwh)],['PV','Magazyn',r.charge_kwh],
- ['Magazyn','Dom',r.discharge_kwh],['Sieć','Dom',r.import_kwh],['PV','Sieć',r.export_kwh]
- ];
- $('links').replaceChildren(...links.map(([from,to,value])=>{
-  const line=document.createElement('div');
-  line.style.opacity=value>0?'1':'.62';
-  for(const label of [from,format(value)+' kWh →',to]){
-   const span=document.createElement('span');span.textContent=label;line.append(span);
-  }
-  const cable=document.createElement('button'), graph=document.createElement('button');
-  cable.textContent='Przewód';cable.setAttribute('aria-label','Przewód: '+from+' do '+to);
-  cable.onclick=()=>openTechnical('Przewód: '+from+' → '+to,[
-   'Energia w wybranej godzinie: '+format(value)+' kWh',
-   'Długość, przekrój, materiał i sposób ułożenia: nie podano.',
-   'Obciążalność i spadek napięcia wymagają danych przewodu.'
-  ]);
-  graph.textContent=english?'◉ Sensor':'◉ Czujnik';graph.setAttribute('aria-label','Wykres przepływu: '+from+' do '+to);
-  graph.onclick=()=>openChart([from==='PV'&&to==='Dom'?'direct_kwh':from==='PV'&&to==='Magazyn'?'charge_kwh':from==='Magazyn'?'discharge_kwh':from==='Sieć'?'import_kwh':'export_kwh']);
-  line.append(cable,graph);return line;
- }));
+ const board=$('links');
+ board.replaceChildren();
+ const tr=(pl,en)=>english?en:pl;
+ function place(element,col,row){
+  element.style.gridColumn=col;element.style.gridRow=row;board.append(element);
+ }
+ function sensor(group,label,keys){
+  const b=document.createElement('button');b.className='reading';
+  b.textContent=tr('◉ Czujnik','◉ Sensor');b.setAttribute('aria-label',b.textContent+' · '+label);
+  b.onclick=()=>openChart(keys);group.append(b);
+ }
+ function device(col,row,icon,label,value,keys,action){
+  const group=document.createElement('div'),b=document.createElement('button');
+  group.className='device';b.className='device-main';
+  const symbol=document.createElement('span'),name=document.createElement('strong'),reading=document.createElement('small');
+  symbol.className='symbol';symbol.textContent=icon;symbol.setAttribute('aria-hidden','true');
+  name.textContent=label;reading.textContent=value;b.append(symbol,name,reading);
+  b.onclick=action;group.append(b);sensor(group,label,keys);place(group,col,row);
+ }
+ const energy=v=>format(v)+' kWh';
+ function wire(col,row,label,value,arrow,keys,vertical=false){
+  const group=document.createElement('div'),b=document.createElement('button');
+  group.className='wire'+(vertical?' vertical':'')+(value>0?' active':'');
+  b.textContent=(value>0?arrow:'—')+' '+energy(value);
+  b.dataset.flow=value>0?'active':'idle';
+  b.setAttribute('aria-label',label+' · '+b.textContent);
+  b.onclick=()=>openTechnical(label,[tr('Energia w wybranej godzinie: ','Energy in selected hour: ')+energy(value),tr('Długość i przekrój: nie podano.','Length and cross-section: unspecified.')]);
+  group.append(b);sensor(group,label,keys);place(group,col,row);
+ }
+ const pv=tr('Panele PV','Solar panels'),hub=tr('Falownik hybrydowy','Hybrid inverter'),meter=tr('Licznik energii','Energy meter'),grid=tr('Sieć','Grid');
+ const charge=r.charge_kwh,discharge=r.discharge_kwh;
+ device(1,1,'▦',pv,energy(r.pv_kwh),['pv_kwh','curtailed_kwh'],()=>openTechnical(pv,[tr('Produkcja: ','Production: ')+energy(r.pv_kwh),tr('Model i moc znamionowa: nie podano.','Model and rated power: unspecified.')]));
+ wire(2,1,tr('Przewód DC · PV–falownik','DC cable · PV–inverter'),Math.max(0,r.pv_kwh-r.curtailed_kwh),'→',['pv_kwh','curtailed_kwh']);
+ device(3,1,'▣',hub,tr('Rozdział energii','Energy routing'),['direct_kwh','charge_kwh','discharge_kwh'],()=>openTechnical(hub,[tr('Model falownika: nie podano.','Inverter model: unspecified.')]));
+ const exchanged=r.import_kwh+r.export_kwh;
+ wire(4,1,tr('Przewód AC · falownik–licznik','AC cable · inverter–meter'),exchanged,r.import_kwh>0?'←':'→',['import_kwh','export_kwh']);
+ device(5,1,'◴',meter,energy(exchanged),['import_kwh','export_kwh'],()=>openPage('meter'));
+ wire(6,1,tr('Przewód AC · licznik–sieć','AC cable · meter–grid'),exchanged,r.import_kwh>0?'←':'→',['import_kwh','export_kwh']);
+ device(7,1,'⌁',grid,energy(exchanged),['import_kwh','export_kwh'],()=>openTechnical(grid,[tr('Pobór: ','Import: ')+energy(r.import_kwh),tr('Oddanie: ','Export: ')+energy(r.export_kwh)]));
+ wire(3,2,tr('Przewód DC · falownik–magazyn','DC cable · inverter–battery'),charge+discharge,charge>0?'↓':'↑',['charge_kwh','discharge_kwh'],true);
+ const state=charge>0?tr('Ładowanie','Charging'):discharge>0?tr('Rozładowanie','Discharging'):tr('Spoczynek','Idle');
+ device(3,3,'▰',tr('Magazyn · BMS','Battery · BMS'),state+' · '+energy(r.soc_kwh),['soc_kwh','charge_kwh','discharge_kwh'],()=>openPage('battery'));
+ wire(5,2,tr('Przewód AC · licznik–dom','AC cable · meter–home'),r.load_kwh,'↓',['load_kwh'],true);
+ const home=tr('Odbiorniki domu','Home loads');
+ device(5,3,'⌂',home,energy(r.load_kwh),['load_kwh','import_kwh'],()=>openTechnical(home,[tr('Zużycie: ','Consumption: ')+energy(r.load_kwh)]));
  const explanations={
  pv_kwh:'Wyprodukowane '+format(r.pv_kwh)+' kWh · ograniczona produkcja '+format(r.curtailed_kwh)+' kWh',
  load_kwh:'Zużycie '+format(r.load_kwh)+' kWh · magazyn oddał '+format(r.discharge_kwh)+' kWh · sieć dostarczyła '+format(r.import_kwh)+' kWh',
