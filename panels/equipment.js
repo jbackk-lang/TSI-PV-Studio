@@ -48,7 +48,7 @@ function paintInventory(){
  target.value=diagramTargets.has(selected)?selected:'';
  $('inventory-list').replaceChildren(...inventory.map(item=>{
   const row=document.createElement('tr');
-  for(const value of [item.type==='sensor'?'Czujnik':'Urządzenie',item.name,item.model||'—',diagramTargets.get(item.target)||'—',item.link||'—',(item.protocol==='Modbus TCP'||item.protocol==='demo')?sampleLabel(item):item.link?'Zapisano konfigurację · brak odczytu':'Brak konfiguracji']){
+  for(const value of [item.type==='sensor'?'Czujnik':'Urządzenie',item.name,item.model||'—',diagramTargets.get(item.target)||'—',item.link||'—',(['Modbus TCP','Modbus RTU'].includes(item.protocol)||item.protocol==='demo')?sampleLabel(item):item.link?'Zapisano konfigurację · brak odczytu':'Brak konfiguracji']){
    row.insertCell().textContent=value;
   }
   const remove=document.createElement('button');remove.textContent='Usuń';
@@ -57,7 +57,7 @@ function paintInventory(){
   const edit=document.createElement('button');edit.textContent='Edytuj';
   edit.onclick=()=>editInventory(item);
   const actions=row.insertCell();if(item.protocol!=='demo')actions.append(edit);actions.append(remove);
-  if(item.protocol==='Modbus TCP'){
+  if(['Modbus TCP','Modbus RTU'].includes(item.protocol)){
    const read=document.createElement('button');read.textContent='Odczytaj próbkę';
    read.onclick=()=>readSample(item,read);
    actions.append(read);
@@ -117,11 +117,11 @@ async function readSample(item,button){
  button.disabled=true;
  try{
   const response=await fetch('/modbus-read',{method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({host:c.host,port:Number(c.port),unit:Number(c.unit),address:Number(c.register),input:c.function==='4',format:c.format||'u16',scale:Number(c.scale??1),swap:c.order==='zamieniona'})});
+   body:JSON.stringify({transport:item.protocol==='Modbus RTU'?'rtu':'tcp',com:c.com,baud:Number(c.baud),parity:c.parity,stop:Number(c.stop),host:c.host,port:Number(c.port),unit:Number(c.unit),address:Number(c.register),input:c.function==='4',format:c.format||'u16',scale:Number(c.scale??1),swap:c.order==='zamieniona'})});
   const sample=await response.json();
   if(!inventory.includes(item))return;
   if(response.ok&&Number.isFinite(sample.value)){
-   if(recordSample(item,sample.value,'Modbus TCP'))$('inventory-status').textContent=item.name+' · '+sampleLabel(item);
+   if(recordSample(item,sample.value,item.protocol))$('inventory-status').textContent=item.name+' · '+sampleLabel(item);
   }else{
    latestSamples.set(item.id,{error:true});$('inventory-status').textContent=item.name+' · '+(sample.error||'Nieprawidłowy odczyt.');
   }
@@ -131,7 +131,7 @@ async function readSample(item,button){
 const networkFields=[['host','Adres IP lub nazwa hosta',''],['port','Port TCP','502',1,65535],['unit','Adres urządzenia','1',0,255],['register','Adres rejestru od 0','',0,65535],['function','Typ rejestru (3 – holding, 4 – input)','4',3,4],['format','Format (u16, s16, u32, s32)','u16'],['order','Kolejność słów (normalna lub zamieniona)','normalna'],['scale','Mnożnik','1'],['measurementUnit','Jednostka pomiaru','W']];
 const linkFields={
  Ethernet:networkFields,'Wi-Fi':networkFields,
- 'RS-485':[['com','Port COM',''],['baud','Prędkość transmisji (bit/s)','9600',1,1000000],['parity','Parzystość (N, E lub O)','E'],['stop','Bity stopu','1',1,2],['unit','Adres urządzenia','1',1,247]],
+ 'RS-485':[['com','Port COM',''],['baud','Prędkość transmisji (bit/s)','9600',1,1000000],['parity','Parzystość (N, E lub O)','E'],['stop','Bity stopu','1',1,2],['unit','Adres urządzenia','1',1,247],...networkFields.slice(3)],
  'Bluetooth LE':[['address','Identyfikator urządzenia',''],['service','UUID usługi GATT',''],['characteristic','UUID charakterystyki GATT','']]
 };
 let editingId=null;
