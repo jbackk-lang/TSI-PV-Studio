@@ -2,7 +2,7 @@ from math import isfinite
 
 
 def analyze(data):
-    from integrations.cable_life import CableSpec, estimate_remaining_life
+    from integrations.cable_life import CableSpec, estimate_conductor_temp, estimate_remaining_life
 
     loads = data["loads"]
     rated = data["rated"]
@@ -18,4 +18,11 @@ def analyze(data):
     if insulation not in ("pvc", "xlpe", "epr"):
         raise ValueError("Wybierz typ izolacji.")
     spec = CableSpec(rated_load_w=rated, ambient_temp_c=ambient, insulation_type=insulation)
-    return estimate_remaining_life(loads, 1 / 3600, spec)
+    result = estimate_remaining_life(loads, 1 / 3600, spec)
+    temperatures = estimate_conductor_temp(loads, spec)
+    result["peak_conductor_temp_c"] = float(max(temperatures))
+    result["rows"] = [
+        {"hour": hour, "load_w": load, "temperature_c": float(temperature)}
+        for hour, (load, temperature) in enumerate(zip(loads, temperatures), start=1)
+    ]
+    return result
